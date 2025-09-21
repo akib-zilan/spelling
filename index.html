@@ -61,6 +61,10 @@
                 <h1 id="main-header" class="text-4xl font-bold tracking-tight text-teal-300">Spelling Practice</h1>
                 <p class="text-gray-400 mt-2">Choose a block to start practicing.</p>
             </header>
+            <div class="text-center mb-8">
+                <p class="text-gray-400 text-sm">YOUR TOTAL SCORE</p>
+                <p id="main-menu-score" class="text-5xl font-bold text-white">0</p>
+            </div>
             <div id="block-container" class="space-y-6">
                 <!-- Word blocks will be dynamically inserted here -->
             </div>
@@ -115,11 +119,12 @@
                         </div>
                         <div id="feedback-message" class="mt-4 text-center min-h-[24px] hidden items-center justify-center"></div>
 
-                        <div class="mt-6 grid grid-cols-2 gap-4">
-                            <button id="prev-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition"><i class="fas fa-arrow-left mr-2"></i> Previous</button>
-                            <button id="next-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition">Next <i class="fas fa-arrow-right ml-2"></i></button>
-                            <button id="skip-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-4 rounded-lg transition col-span-1">Skip</button>
-                            <button id="check-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition col-span-1">Check Spelling</button>
+                        <button id="add-to-slab-btn" class="mt-2 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg transition w-full hidden">
+                            <i class="fas fa-plus-circle mr-2"></i>Keep Practicing this Word
+                        </button>
+
+                        <div id="check-btn-container" class="mt-6">
+                            <button id="check-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition w-full">Check Spelling</button>
                         </div>
                     </div>
                 </div>
@@ -200,22 +205,23 @@
             let wordsInCurrentBlock = [];
             let selectedVoice = null;
             let incorrectFeedbackTimeoutId = null;
+            let nextWordTimeoutId = null;
+
 
             const mainMenu = document.getElementById('main-menu');
             const practiceInterface = document.getElementById('practice-interface');
             const completionScreen = document.getElementById('completion-screen');
             const blockContainer = document.getElementById('block-container');
+            const mainMenuScore = document.getElementById('main-menu-score');
 
             const practiceTitle = document.getElementById('practice-title');
             const definitionEl = document.getElementById('definition');
             const spellInput = document.getElementById('spell-input');
             const speakBtn = document.getElementById('speak-btn');
             const checkBtn = document.getElementById('check-btn');
-            const skipBtn = document.getElementById('skip-btn');
+            const checkBtnContainer = document.getElementById('check-btn-container');
             const homeBtn = document.getElementById('home-btn');
-            const nextBtn = document.getElementById('next-btn');
-            const prevBtn = document.getElementById('prev-btn');
-
+            
             const liveScoreEl = document.getElementById('live-score');
             const feedbackMessageEl = document.getElementById('feedback-message');
             const progressBar = document.getElementById('progress-bar');
@@ -231,6 +237,7 @@
             const addWordModal = document.getElementById('add-word-modal');
             const closeModalBtn = document.getElementById('close-modal-btn');
             const addWordForm = document.getElementById('add-word-form');
+            const addToSlabBtn = document.getElementById('add-to-slab-btn');
 
             async function init() {
                 loadVoices();
@@ -252,6 +259,7 @@
             
             async function loadUserData() {
                 return new Promise((resolve) => {
+                    if (userDataUnsubscribe) userDataUnsubscribe();
                     const docRef = db.collection('userData').doc(userId);
                     userDataUnsubscribe = docRef.onSnapshot(doc => {
                         if (doc.exists) {
@@ -260,7 +268,6 @@
                             slabs = data.slabs || [];
                             bars = data.bars || [];
                         } else {
-                            // First time user, initialize data
                             totalPoints = 0;
                             slabs = [];
                             bars = [];
@@ -270,7 +277,7 @@
                         resolve();
                     }, error => {
                         console.error("Error loading user data:", error);
-                        resolve(); // Resolve even if there's an error to not block the app
+                        resolve();
                     });
                 });
             }
@@ -289,6 +296,10 @@
                 if (incorrectFeedbackTimeoutId) {
                     clearTimeout(incorrectFeedbackTimeoutId);
                     incorrectFeedbackTimeoutId = null;
+                }
+                 if (nextWordTimeoutId) {
+                    clearTimeout(nextWordTimeoutId);
+                    nextWordTimeoutId = null;
                 }
             }
 
@@ -404,6 +415,10 @@
                     spellInput.classList.remove('border-green-500', 'border-red-500');
                     spellInput.classList.add('border-gray-600', 'focus:border-teal-500');
                     feedbackMessageEl.classList.add('hidden');
+                    
+                    addToSlabBtn.classList.add('hidden');
+                    checkBtnContainer.classList.remove('hidden');
+
                     updateProgress();
                 } else {
                     showCompletionScreen();
@@ -447,7 +462,6 @@
                     spellInput.classList.remove('border-red-500', 'border-gray-600', 'focus:border-teal-500');
                     spellInput.disabled = true;
 
-                    // Remove from slabs/bars if it was there and is now correct
                     const currentWordObj = wordsInCurrentBlock[currentWordIndex];
                     let wasInSlab = slabs.findIndex(w => w.word === currentWordObj.word);
                     if (wasInSlab !== -1) slabs.splice(wasInSlab, 1);
@@ -455,10 +469,19 @@
                     let wasInBar = bars.findIndex(w => w.word === currentWordObj.word);
                     if (wasInBar !== -1) bars.splice(wasInBar, 1);
 
-                    setTimeout(() => {
+                    // Show "Add to Slab" button
+                    addToSlabBtn.classList.remove('hidden');
+                    addToSlabBtn.disabled = false;
+                    addToSlabBtn.innerHTML = `<i class="fas fa-plus-circle mr-2"></i>Keep Practicing this Word`;
+                    addToSlabBtn.dataset.word = JSON.stringify(currentWordObj);
+                    checkBtnContainer.classList.add('hidden');
+
+
+                    nextWordTimeoutId = setTimeout(() => {
                         currentWordIndex++;
                         loadWord();
-                    }, 1000);
+                    }, 4000);
+
                 } else {
                     totalPoints = Math.max(0, totalPoints - 5);
                     updateScoreDisplay(false);
@@ -473,9 +496,9 @@
 
                     incorrectFeedbackTimeoutId = setTimeout(() => {
                          if (feedbackMessageEl.innerHTML.includes(correctSpelling)) {
-                             feedbackMessageEl.innerHTML = `Try again or skip to the next word.`;
+                             feedbackMessageEl.innerHTML = `Try again.`;
                          }
-                    }, 10000); // 10 seconds
+                    }, 10000);
 
                     spellInput.classList.add('border-red-500');
                     spellInput.classList.remove('border-green-500', 'border-gray-600', 'focus:border-teal-500');
@@ -492,25 +515,6 @@
                 saveUserData();
             }
 
-            function skipWord() {
-                clearIncorrectFeedback();
-                totalPoints = Math.max(0, totalPoints - 2);
-                updateScoreDisplay(false);
-
-                const wordObj = wordsInCurrentBlock[currentWordIndex];
-                const practiceTitleText = practiceTitle.textContent.toLowerCase();
-
-                if (practiceTitleText.includes('slab')) {
-                    if (!bars.some(w => w.word === wordObj.word)) bars.push(wordObj);
-                } else if (!practiceTitleText.includes('bar')) {
-                    if (!slabs.some(w => w.word === wordObj.word)) slabs.push(wordObj);
-                }
-                
-                saveUserData();
-                currentWordIndex++;
-                loadWord();
-            }
-            
             function showCompletionScreen() {
                 practiceInterface.classList.add('hidden');
                 completionScreen.classList.remove('hidden');
@@ -519,13 +523,11 @@
             }
 
             function goToMainMenu() {
-                if (userDataUnsubscribe) userDataUnsubscribe();
+                clearIncorrectFeedback();
                 practiceInterface.classList.add('hidden');
                 completionScreen.classList.add('hidden');
                 mainMenu.classList.remove('hidden');
-                if (auth.currentUser) {
-                    loadUserData().then(updateAndRenderBlocks);
-                }
+                loadUserData();
             }
 
             function updateProgress() {
@@ -538,26 +540,11 @@
             
             function updateScoreDisplay(animate = false) {
                  liveScoreEl.textContent = totalPoints.toLocaleString();
+                 mainMenuScore.textContent = totalPoints.toLocaleString();
                  if (animate) {
                      liveScoreEl.classList.add('score-updated');
                      setTimeout(() => liveScoreEl.classList.remove('score-updated'), 300);
                  }
-            }
-            
-            function goToNextWord() {
-                clearIncorrectFeedback();
-                if (currentWordIndex < wordsInCurrentBlock.length - 1) {
-                    currentWordIndex++;
-                    loadWord();
-                }
-            }
-            
-            function goToPrevWord() {
-                clearIncorrectFeedback();
-                if (currentWordIndex > 0) {
-                    currentWordIndex--;
-                    loadWord();
-                }
             }
             
             function setupEventListeners() {
@@ -566,6 +553,7 @@
                     if (e.key === 'Enter') checkSpelling();
                 });
                 spellInput.addEventListener('focus', () => {
+                    if (spellInput.disabled) return;
                     clearIncorrectFeedback();
                     if (!feedbackMessageEl.classList.contains('correct')) {
                         feedbackMessageEl.classList.add('hidden');
@@ -573,16 +561,23 @@
                     }
                 });
                 speakBtn.addEventListener('click', speakWord);
-                skipBtn.addEventListener('click', skipWord);
                 homeBtn.addEventListener('click', goToMainMenu);
-                nextBtn.addEventListener('click', goToNextWord);
-                prevBtn.addEventListener('click', goToPrevWord);
                 
                 mainMenuBtn.addEventListener('click', goToMainMenu);
                 retryBlockBtn.addEventListener('click', () => {
                     completionScreen.classList.add('hidden');
                     startPractice(currentBlockData, practiceTitle.textContent);
                 });
+
+                addToSlabBtn.addEventListener('click', () => {
+                    const wordData = JSON.parse(addToSlabBtn.dataset.word);
+                    if (wordData && !slabs.some(w => w.word === wordData.word)) {
+                        slabs.push(wordData);
+                        saveUserData();
+                        addToSlabBtn.innerHTML = `<i class="fas fa-check-circle mr-2"></i>Added to Slabs!`;
+                        addToSlabBtn.disabled = true;
+                    }
+                 });
                 
                 addWordsBtn.addEventListener('click', () => addWordModal.classList.remove('hidden'));
                 resetScoreBtn.addEventListener('click', () => {
@@ -607,12 +602,8 @@
                     if(newWord && newDefinition){
                         const newWordObj = { word: newWord, definition: newDefinition };
                         
-                        const lastBlock = wordBlocks[wordBlocks.length - 1];
-                        if (lastBlock && lastBlock.length < BLOCK_SIZE) {
-                            allWords.push(newWordObj);
-                        } else {
-                            allWords.push(newWordObj);
-                        }
+                        allWords.push(newWordObj);
+                        
                         updateAndRenderBlocks();
                         addWordModal.classList.add('hidden');
                         addWordForm.reset();
