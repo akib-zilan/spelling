@@ -313,8 +313,16 @@
         const newDefinitionInput = document.getElementById('new-definition');
 
         // Firebase Setup
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-spellcraft-app';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const firebaseConfig = {
+            apiKey: "AIzaSyC3KlFLZOHYDRKa0k8fkCFwaMNStcv7JCQ",
+            authDomain: "spelling-45b13.firebaseapp.com",
+            projectId: "spelling-45b13",
+            storageBucket: "spelling-45b13.appspot.com",
+            messagingSenderId: "508437399649",
+            appId: "1:508437399649:web:d0ccc685f895d700308220",
+            measurementId: "G-S0J0XLYTHL"
+        };
+        const appId = firebaseConfig.projectId;
         let db, auth, userId, unsubscribeFromData;
 
         if (firebaseConfig) {
@@ -329,11 +337,7 @@
                     initApp();
                 } else {
                     try {
-                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await signInWithCustomToken(auth, __initial_auth_token);
-                         } else {
-                            await signInAnonymously(auth);
-                         }
+                        await signInAnonymously(auth);
                     } catch(error) {
                         console.error("Firebase Auth Error:", error);
                         // Initialize app with local data if auth fails
