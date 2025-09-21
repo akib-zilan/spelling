@@ -205,11 +205,18 @@
             let userDataUnsubscribe = null;
 
             const BLOCK_SIZE = 20;
+            const BLOCK_COOLDOWN = 20 * 60 * 1000; // 20 minutes
+            const SLAB_COOLDOWN = 5 * 60 * 1000; // 5 minutes
+
             let wordBlocks = [];
             let slabBlocks = [];
             let barBlocks = [];
             let slabs = [];
             let bars = [];
+            let blockCooldowns = {};
+            let slabCooldowns = {};
+            let cooldownInterval = null;
+
 
             let currentBlockData = null;
             let currentWordIndex = 0;
@@ -282,10 +289,14 @@
                             totalPoints = data.totalPoints || 0;
                             slabs = data.slabs || [];
                             bars = data.bars || [];
+                            blockCooldowns = data.blockCooldowns || {};
+                            slabCooldowns = data.slabCooldowns || {};
                         } else {
                             totalPoints = 0;
                             slabs = [];
                             bars = [];
+                            blockCooldowns = {};
+                            slabCooldowns = {};
                         }
                         updateScoreDisplay();
                         updateAndRenderBlocks();
@@ -300,14 +311,14 @@
             async function saveUserData() {
                 if (!userId) return;
                 try {
-                    const userData = { totalPoints, slabs, bars };
+                    const userData = { totalPoints, slabs, bars, blockCooldowns, slabCooldowns };
                     await db.collection('userData').doc(userId).set(userData, { merge: true });
                 } catch (error) {
                     console.error("Error saving user data: ", error);
                 }
             }
             
-            function clearIncorrectFeedback() {
+            function clearTimeouts() {
                 if (incorrectFeedbackTimeoutId) {
                     clearTimeout(incorrectFeedbackTimeoutId);
                     incorrectFeedbackTimeoutId = null;
@@ -316,9 +327,6 @@
                     clearTimeout(nextWordTimeoutId);
                     nextWordTimeoutId = null;
                 }
-                checkBtn.disabled = false;
-                timerContainer.classList.add('hidden');
-                timerBar.classList.remove('shrinking-bar');
             }
 
             function loadVoices() {
@@ -361,12 +369,19 @@
                 return container;
             }
 
+            function formatRemainingTime(ms) {
+                const totalSeconds = Math.ceil(ms / 1000);
+                const minutes = Math.floor(totalSeconds / 60);
+                const seconds = totalSeconds % 60;
+                return `<i class="fas fa-hourglass-half mr-2"></i> ${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }
+
             function renderBlocks() {
                 blockContainer.innerHTML = '';
                 const allBlockGroups = [
-                    { title: 'Word Blocks', blocks: wordBlocks, color: 'bg-teal-500', hover: 'hover:bg-teal-600' },
-                    { title: 'Practice Slabs', blocks: slabBlocks, color: 'bg-indigo-500', hover: 'hover:bg-indigo-600' },
-                    { title: 'Challenge Bars', blocks: barBlocks, color: 'bg-rose-500', hover: 'hover:bg-rose-600' },
+                    { title: 'Word Blocks', blocks: wordBlocks, color: 'bg-teal-500', hover: 'hover:bg-teal-600', type: 'block' },
+                    { title: 'Practice Slabs', blocks: slabBlocks, color: 'bg-indigo-500', hover: 'hover:bg-indigo-600', type: 'slab' },
+                    { title: 'Challenge Bars', blocks: barBlocks, color: 'bg-rose-500', hover: 'hover:bg-rose-600', type: 'bar' },
                 ];
 
                 allBlockGroups.forEach(group => {
@@ -378,32 +393,53 @@
                             const button = document.createElement('button');
                             const blockNum = index + 1;
                             
-                            button.className = `${group.color} ${group.hover} text-white font-bold py-6 rounded-lg transition-transform transform hover:scale-105 shadow-lg flex flex-col items-center justify-center`;
-                            button.innerHTML = `<span class="text-2xl">${blockNum}</span><span class="text-xs mt-1">${group.title.split(' ')[1]}</span>`;
-                            
-                            const isStandardBlock = group.title === 'Word Blocks';
+                            button.className = `${group.color} text-white font-bold py-6 rounded-lg shadow-lg flex flex-col items-center justify-center text-center`;
+                            const originalContent = `<span class="text-2xl">${blockNum}</span><span class="text-xs mt-1">${group.title.split(' ')[1]}</span>`;
+                            button.innerHTML = originalContent;
+                            button.dataset.originalContent = originalContent;
 
+                            let blockTitle;
+                            if(group.type === 'block') blockTitle = `Block ${blockNum}`;
+                            if(group.type === 'slab') blockTitle = `Slab ${blockNum}`;
+                            if(group.type === 'bar') blockTitle = `Bar ${blockNum}`;
+
+                            button.addEventListener('click', () => startPractice(block, blockTitle));
+                            
+                            // Score lock logic
+                            const isStandardBlock = group.type === 'block';
                             if (isStandardBlock && blockNum > 1) {
                                 const requiredScore = (blockNum - 1) * 1000;
                                 if (totalPoints < requiredScore) {
                                     button.disabled = true;
                                     button.classList.add('opacity-60', 'cursor-not-allowed', 'relative');
-                                    button.classList.remove(group.hover, 'hover:scale-105');
                                     button.innerHTML += `
                                         <div class="absolute inset-0 bg-black bg-opacity-60 rounded-lg flex items-center justify-center">
                                             <span class="flex items-center text-sm bg-gray-800 px-2 py-1 rounded-full">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="mr-1.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                                                 ${requiredScore.toLocaleString()}
                                             </span>
-                                        </div>
-                                    `;
-                                } else {
-                                    button.addEventListener('click', () => startPractice(block, `Block ${blockNum}`));
+                                        </div>`;
                                 }
-                            } else {
-                                const title = group.title === 'Practice Slabs' ? `Slab ${blockNum}` : group.title === 'Challenge Bars' ? `Bar ${blockNum}` : `Block ${blockNum}`;
-                                button.addEventListener('click', () => startPractice(block, title));
                             }
+                            
+                             // Cooldown logic
+                            const cooldowns = group.type === 'block' ? blockCooldowns : slabCooldowns;
+                            const cooldownDuration = group.type === 'block' ? BLOCK_COOLDOWN : SLAB_COOLDOWN;
+                            if (cooldowns && cooldowns[blockTitle]) {
+                                const completionTime = cooldowns[blockTitle];
+                                const endTime = completionTime + cooldownDuration;
+                                if (Date.now() < endTime) {
+                                    button.disabled = true;
+                                    button.classList.add('opacity-60', 'cursor-not-allowed', 'on-cooldown');
+                                    button.dataset.cooldownEnd = endTime;
+                                    button.innerHTML = formatRemainingTime(endTime - Date.now());
+                                }
+                            }
+
+                            if (!button.disabled) {
+                                button.classList.add(group.hover, 'transition-transform', 'transform', 'hover:scale-105');
+                            }
+
                             gridEl.appendChild(button);
                         });
                         blockContainer.appendChild(groupEl);
@@ -411,8 +447,27 @@
                 });
             }
 
+            function updateAllCooldownTimers() {
+                document.querySelectorAll('.on-cooldown').forEach(button => {
+                    const endTime = parseInt(button.dataset.cooldownEnd, 10);
+                    const remaining = endTime - Date.now();
+
+                    if (remaining > 0) {
+                        button.innerHTML = formatRemainingTime(remaining);
+                    } else {
+                        button.disabled = false;
+                        button.classList.remove('opacity-60', 'cursor-not-allowed', 'on-cooldown');
+                        button.removeAttribute('data-cooldown-end');
+                        button.innerHTML = button.dataset.originalContent;
+                        // Re-add hover styles
+                         if (button.className.includes('bg-teal-500')) button.classList.add('hover:bg-teal-600', 'transition-transform', 'transform', 'hover:scale-105');
+                         if (button.className.includes('bg-indigo-500')) button.classList.add('hover:bg-indigo-600', 'transition-transform', 'transform', 'hover:scale-105');
+                    }
+                });
+            }
+
             function startPractice(block, title) {
-                clearIncorrectFeedback();
+                clearTimeouts();
                 currentBlockData = block;
                 wordsInCurrentBlock = [...block];
                 practiceTitle.textContent = title;
@@ -460,7 +515,7 @@
             }
 
             function checkSpelling() {
-                clearIncorrectFeedback();
+                clearTimeouts();
                 if (spellInput.disabled) return;
                 const typedWord = spellInput.value.trim().toLowerCase();
                 const correctWord = wordsInCurrentBlock[currentWordIndex].word.toLowerCase();
@@ -487,13 +542,11 @@
                     let wasInBar = bars.findIndex(w => w.word === currentWordObj.word);
                     if (wasInBar !== -1) bars.splice(wasInBar, 1);
 
-                    // Show "Add to Slab" button
                     addToSlabBtn.classList.remove('hidden');
                     addToSlabBtn.disabled = false;
                     addToSlabBtn.innerHTML = `<i class="fas fa-plus-circle mr-2"></i>Keep Practicing this Word`;
                     addToSlabBtn.dataset.word = JSON.stringify(currentWordObj);
                     checkBtnContainer.classList.add('hidden');
-
 
                     nextWordTimeoutId = setTimeout(() => {
                         currentWordIndex++;
@@ -511,20 +564,12 @@
                     `;
                     feedbackMessageEl.classList.add('incorrect');
                     feedbackMessageEl.classList.remove('correct');
-
-                    checkBtn.disabled = true;
-                    timerContainer.classList.remove('hidden');
-                    timerBar.classList.add('shrinking-bar');
+                    spellInput.disabled = true;
 
                     incorrectFeedbackTimeoutId = setTimeout(() => {
-                         if (feedbackMessageEl.innerHTML.includes(correctSpelling)) {
-                             feedbackMessageEl.innerHTML = `Try again.`;
-                         }
-                         checkBtn.disabled = false;
-                         timerContainer.classList.add('hidden');
-                         timerBar.classList.remove('shrinking-bar');
-
-                    }, 10000);
+                        currentWordIndex++;
+                        loadWord();
+                    }, 3000);
 
                     spellInput.classList.add('border-red-500');
                     spellInput.classList.remove('border-green-500', 'border-gray-600', 'focus:border-teal-500');
@@ -542,6 +587,14 @@
             }
 
             function showCompletionScreen() {
+                const title = practiceTitle.textContent;
+                if (title.toLowerCase().includes('block')) {
+                    blockCooldowns[title] = Date.now();
+                } else if (title.toLowerCase().includes('slab')) {
+                    slabCooldowns[title] = Date.now();
+                }
+                saveUserData();
+
                 practiceInterface.classList.add('hidden');
                 completionScreen.classList.remove('hidden');
                 finalScoreEl.textContent = `You got ${correctCount} out of ${wordsInCurrentBlock.length} correct.`;
@@ -549,7 +602,7 @@
             }
 
             function goToMainMenu() {
-                clearIncorrectFeedback();
+                clearTimeouts();
                 practiceInterface.classList.add('hidden');
                 completionScreen.classList.add('hidden');
                 mainMenu.classList.remove('hidden');
@@ -574,13 +627,17 @@
             }
             
             function setupEventListeners() {
+                if (!cooldownInterval) {
+                    cooldownInterval = setInterval(updateAllCooldownTimers, 1000);
+                }
+
                 checkBtn.addEventListener('click', checkSpelling);
                 spellInput.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') checkSpelling();
                 });
                 spellInput.addEventListener('focus', () => {
                     if (spellInput.disabled) return;
-                    clearIncorrectFeedback();
+                    clearTimeouts();
                     if (!feedbackMessageEl.classList.contains('correct')) {
                         feedbackMessageEl.classList.add('hidden');
                         feedbackMessageEl.classList.remove('incorrect');
@@ -612,6 +669,8 @@
                         totalPoints = 0;
                         slabs = [];
                         bars = [];
+                        blockCooldowns = {};
+                        slabCooldowns = {};
                         saveUserData().then(() => {
                            alert("Your progress has been reset.");
                            updateAndRenderBlocks();
