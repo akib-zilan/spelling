@@ -215,6 +215,7 @@
             let bars = [];
             let blockCooldowns = {};
             let slabCooldowns = {};
+            let blockProgress = {};
             let cooldownInterval = null;
 
 
@@ -287,16 +288,19 @@
                         if (doc.exists) {
                             const data = doc.data();
                             totalPoints = data.totalPoints || 0;
-                            slabs = data.slabs || [];
-                            bars = data.bars || [];
+                            // Explicitly copy arrays to avoid mutation issues with Firestore data objects
+                            slabs = [...(data.slabs || [])];
+                            bars = [...(data.bars || [])];
                             blockCooldowns = data.blockCooldowns || {};
                             slabCooldowns = data.slabCooldowns || {};
+                            blockProgress = data.blockProgress || {};
                         } else {
                             totalPoints = 0;
                             slabs = [];
                             bars = [];
                             blockCooldowns = {};
                             slabCooldowns = {};
+                            blockProgress = {};
                         }
                         updateScoreDisplay();
                         updateAndRenderBlocks();
@@ -311,7 +315,7 @@
             async function saveUserData() {
                 if (!userId) return;
                 try {
-                    const userData = { totalPoints, slabs, bars, blockCooldowns, slabCooldowns };
+                    const userData = { totalPoints, slabs, bars, blockCooldowns, slabCooldowns, blockProgress };
                     await db.collection('userData').doc(userId).set(userData, { merge: true });
                 } catch (error) {
                     console.error("Error saving user data: ", error);
@@ -471,7 +475,7 @@
                 currentBlockData = block;
                 wordsInCurrentBlock = [...block];
                 practiceTitle.textContent = title;
-                currentWordIndex = 0;
+                currentWordIndex = blockProgress[title] || 0;
                 correctCount = 0;
                 mainMenu.classList.add('hidden');
                 practiceInterface.classList.remove('hidden');
@@ -520,6 +524,14 @@
                 const typedWord = spellInput.value.trim().toLowerCase();
                 const correctWord = wordsInCurrentBlock[currentWordIndex].word.toLowerCase();
                 const isCorrect = typedWord === correctWord;
+
+                // Save progress for the next word
+                if (currentWordIndex + 1 < wordsInCurrentBlock.length) {
+                    blockProgress[practiceTitle.textContent] = currentWordIndex + 1;
+                } else {
+                    // This was the last word, so clear the progress for this block
+                    delete blockProgress[practiceTitle.textContent];
+                }
 
                 feedbackMessageEl.classList.remove('hidden');
                 
@@ -671,6 +683,7 @@
                         bars = [];
                         blockCooldowns = {};
                         slabCooldowns = {};
+                        blockProgress = {};
                         saveUserData().then(() => {
                            alert("Your progress has been reset.");
                            updateAndRenderBlocks();
