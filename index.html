@@ -205,7 +205,8 @@
 
             const BLOCK_SIZE = 20;
             const BLOCK_COOLDOWN = 20 * 60 * 1000; // 20 minutes
-            const SLAB_COOLDOWN = 5 * 60 * 1000; // 5 minutes
+            const SLAB_COOLDOWN = 7 * 60 * 1000; // 7 minutes
+            const BAR_COOLDOWN = 5 * 60 * 1000; // 5 minutes
 
             let wordBlocks = [];
             let slabBlocks = [];
@@ -214,6 +215,7 @@
             let bars = [];
             let blockCooldowns = {};
             let slabCooldowns = {};
+            let barCooldowns = {};
             let blockProgress = {};
             let cooldownInterval = null;
 
@@ -291,6 +293,7 @@
                             bars = [...(data.bars || [])];
                             blockCooldowns = data.blockCooldowns || {};
                             slabCooldowns = data.slabCooldowns || {};
+                            barCooldowns = data.barCooldowns || {};
                             blockProgress = data.blockProgress || {};
                         } else {
                             totalPoints = 0;
@@ -298,6 +301,7 @@
                             bars = [];
                             blockCooldowns = {};
                             slabCooldowns = {};
+                            barCooldowns = {};
                             blockProgress = {};
                         }
                         updateScoreDisplay();
@@ -313,7 +317,7 @@
             async function saveUserData() {
                 if (!userId) return;
                 try {
-                    const userData = { totalPoints, slabs, bars, blockCooldowns, slabCooldowns, blockProgress };
+                    const userData = { totalPoints, slabs, bars, blockCooldowns, slabCooldowns, barCooldowns, blockProgress };
                     await db.collection('userData').doc(userId).set(userData, { merge: true });
                 } catch (error) {
                     console.error("Error saving user data: ", error);
@@ -427,8 +431,22 @@
                             }
                             
                              // Cooldown logic
-                            const cooldowns = group.type === 'block' ? blockCooldowns : slabCooldowns;
-                            const cooldownDuration = group.type === 'block' ? BLOCK_COOLDOWN : SLAB_COOLDOWN;
+                            let cooldowns, cooldownDuration;
+                            switch(group.type) {
+                                case 'block':
+                                    cooldowns = blockCooldowns;
+                                    cooldownDuration = BLOCK_COOLDOWN;
+                                    break;
+                                case 'slab':
+                                    cooldowns = slabCooldowns;
+                                    cooldownDuration = SLAB_COOLDOWN;
+                                    break;
+                                case 'bar':
+                                    cooldowns = barCooldowns;
+                                    cooldownDuration = BAR_COOLDOWN;
+                                    break;
+                            }
+                            
                             if (cooldowns && cooldowns[blockTitle]) {
                                 const completionTime = cooldowns[blockTitle];
                                 const endTime = completionTime + cooldownDuration;
@@ -466,6 +484,7 @@
                         // Re-add hover styles
                          if (button.className.includes('bg-teal-500')) button.classList.add('hover:bg-teal-600', 'transition-transform', 'transform', 'hover:scale-105');
                          if (button.className.includes('bg-indigo-500')) button.classList.add('hover:bg-indigo-600', 'transition-transform', 'transform', 'hover:scale-105');
+                         if (button.className.includes('bg-rose-500')) button.classList.add('hover:bg-rose-600', 'transition-transform', 'transform', 'hover:scale-105');
                     }
                 });
             }
@@ -524,6 +543,8 @@
                 const typedWord = spellInput.value.trim().toLowerCase();
                 const correctWord = wordsInCurrentBlock[currentWordIndex].word.toLowerCase();
                 const isCorrect = typedWord === correctWord;
+                const practiceTitleText = practiceTitle.textContent.toLowerCase();
+
 
                 // Save progress for the next word
                 if (currentWordIndex + 1 < wordsInCurrentBlock.length) {
@@ -537,7 +558,12 @@
                 
                 if (isCorrect) {
                     correctCount++;
-                    totalPoints += 10;
+                    
+                    if (practiceTitleText.includes('slab') || practiceTitleText.includes('bar')) {
+                        totalPoints += 2;
+                    } else {
+                        totalPoints += 10;
+                    }
                     updateScoreDisplay(true);
 
                     feedbackMessageEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block mr-2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Correct!`;
@@ -561,7 +587,11 @@
                     }, 2000);
 
                 } else {
-                    totalPoints = Math.max(0, totalPoints - 5);
+                    if (practiceTitleText.includes('slab') || practiceTitleText.includes('bar')) {
+                        totalPoints = Math.max(0, totalPoints - 10);
+                    } else {
+                        totalPoints = Math.max(0, totalPoints - 5);
+                    }
                     updateScoreDisplay(false);
                     const correctSpelling = wordsInCurrentBlock[currentWordIndex].word;
                     
@@ -588,8 +618,7 @@
                     spellInput.classList.remove('border-green-500', 'border-gray-600', 'focus:border-teal-500');
 
                     const wordObj = wordsInCurrentBlock[currentWordIndex];
-                    const practiceTitleText = practiceTitle.textContent.toLowerCase();
-
+                    
                     if (practiceTitleText.includes('slab')) {
                         if (!bars.some(w => w.word === wordObj.word)) bars.push(wordObj);
                     } else if (!practiceTitleText.includes('bar')) {
@@ -601,11 +630,16 @@
 
             function showCompletionScreen() {
                 const title = practiceTitle.textContent;
-                if (title.toLowerCase().includes('block')) {
+                const titleLower = title.toLowerCase();
+
+                if (titleLower.includes('block')) {
                     blockCooldowns[title] = Date.now();
-                } else if (title.toLowerCase().includes('slab')) {
+                } else if (titleLower.includes('slab')) {
                     slabCooldowns[title] = Date.now();
+                } else if (titleLower.includes('bar')) {
+                    barCooldowns[title] = Date.now();
                 }
+
                 saveUserData();
 
                 practiceInterface.classList.add('hidden');
@@ -680,6 +714,7 @@
                         bars = [];
                         blockCooldowns = {};
                         slabCooldowns = {};
+                        barCooldowns = {};
                         blockProgress = {};
                         saveUserData().then(() => {
                            alert("Your progress has been reset.");
