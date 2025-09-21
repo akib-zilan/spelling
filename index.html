@@ -279,6 +279,7 @@
         let totalPoints = 0;
         let wordsInCurrentBlock = [];
         let selectedVoice = null;
+        let isAppInitialized = false;
 
         // DOM Elements
         const mainHeader = document.getElementById('main-header');
@@ -334,7 +335,6 @@
                 if (user) {
                     userId = user.uid;
                     loadUserData(userId);
-                    initApp();
                 } else {
                     try {
                         await signInAnonymously(auth);
@@ -351,6 +351,9 @@
         }
 
         function initApp() {
+            if (isAppInitialized) return;
+            isAppInitialized = true;
+
             loadVoices();
             if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
                 speechSynthesis.onvoiceschanged = loadVoices;
@@ -379,6 +382,7 @@
                 }
                 updateScoreDisplay();
                 updateAndRenderBlocks();
+                initApp(); // Initialize the app after the first data load
             });
         }
 
