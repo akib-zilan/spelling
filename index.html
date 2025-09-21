@@ -150,8 +150,7 @@
                 <h2 class="text-3xl font-bold text-teal-300">Block Complete!</h2>
                 <p id="final-score" class="text-xl mt-4">You got 18 out of 20 correct.</p>
                 <p id="final-points" class="text-lg mt-2 text-gray-300">Total Points: 150</p>
-                <div class="mt-8 flex justify-center space-x-4">
-                    <button id="retry-block-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105">Try Again</button>
+                <div class="mt-8 flex justify-center">
                     <button id="main-menu-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105">Main Menu</button>
                 </div>
             </div>
@@ -250,7 +249,6 @@
 
             const finalScoreEl = document.getElementById('final-score');
             const finalPointsEl = document.getElementById('final-points');
-            const retryBlockBtn = document.getElementById('retry-block-btn');
             const mainMenuBtn = document.getElementById('main-menu-btn');
             
             const addWordsBtn = document.getElementById('add-words-btn');
@@ -331,6 +329,8 @@
                     clearTimeout(nextWordTimeoutId);
                     nextWordTimeoutId = null;
                 }
+                timerContainer.classList.add('hidden');
+                timerBar.classList.remove('shrinking-bar');
             }
 
             function loadVoices() {
@@ -412,7 +412,7 @@
                             // Score lock logic
                             const isStandardBlock = group.type === 'block';
                             if (isStandardBlock && blockNum > 1) {
-                                const requiredScore = (blockNum - 1) * 1000;
+                                const requiredScore = (blockNum - 1) * 2000;
                                 if (totalPoints < requiredScore) {
                                     button.disabled = true;
                                     button.classList.add('opacity-60', 'cursor-not-allowed', 'relative');
@@ -548,12 +548,7 @@
                     spellInput.disabled = true;
 
                     const currentWordObj = wordsInCurrentBlock[currentWordIndex];
-                    let wasInSlab = slabs.findIndex(w => w.word === currentWordObj.word);
-                    if (wasInSlab !== -1) slabs.splice(wasInSlab, 1);
                     
-                    let wasInBar = bars.findIndex(w => w.word === currentWordObj.word);
-                    if (wasInBar !== -1) bars.splice(wasInBar, 1);
-
                     addToSlabBtn.classList.remove('hidden');
                     addToSlabBtn.disabled = false;
                     addToSlabBtn.innerHTML = `<i class="fas fa-plus-circle mr-2"></i>Keep Practicing this Word`;
@@ -563,7 +558,7 @@
                     nextWordTimeoutId = setTimeout(() => {
                         currentWordIndex++;
                         loadWord();
-                    }, 4000);
+                    }, 2000);
 
                 } else {
                     totalPoints = Math.max(0, totalPoints - 5);
@@ -578,10 +573,16 @@
                     feedbackMessageEl.classList.remove('correct');
                     spellInput.disabled = true;
 
+                    timerContainer.classList.remove('hidden');
+                    // We must remove and re-add the class to restart the animation
+                    timerBar.classList.remove('shrinking-bar');
+                    void timerBar.offsetWidth; // Trigger a reflow
+                    timerBar.classList.add('shrinking-bar');
+
                     incorrectFeedbackTimeoutId = setTimeout(() => {
                         currentWordIndex++;
                         loadWord();
-                    }, 3000);
+                    }, 10000);
 
                     spellInput.classList.add('border-red-500');
                     spellInput.classList.remove('border-green-500', 'border-gray-600', 'focus:border-teal-500');
@@ -659,10 +660,6 @@
                 homeBtn.addEventListener('click', goToMainMenu);
                 
                 mainMenuBtn.addEventListener('click', goToMainMenu);
-                retryBlockBtn.addEventListener('click', () => {
-                    completionScreen.classList.add('hidden');
-                    startPractice(currentBlockData, practiceTitle.textContent);
-                });
 
                 addToSlabBtn.addEventListener('click', () => {
                     const wordData = JSON.parse(addToSlabBtn.dataset.word);
