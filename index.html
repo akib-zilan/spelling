@@ -48,6 +48,15 @@
         .score-updated {
             animation: score-update 0.3s ease-in-out;
         }
+        
+        @keyframes shrink {
+            from { width: 100%; }
+            to { width: 0%; }
+        }
+
+        .shrinking-bar {
+            animation: shrink 10s linear forwards;
+        }
     </style>
 </head>
 
@@ -118,6 +127,10 @@
                             </button>
                         </div>
                         <div id="feedback-message" class="mt-4 text-center min-h-[24px] hidden items-center justify-center"></div>
+                        
+                        <div id="timer-container" class="w-full h-1 bg-gray-700 rounded-full mt-2 hidden">
+                            <div id="timer-bar" class="h-1 bg-rose-500 rounded-full"></div>
+                        </div>
 
                         <button id="add-to-slab-btn" class="mt-2 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg transition w-full hidden">
                             <i class="fas fa-plus-circle mr-2"></i>Keep Practicing this Word
@@ -238,6 +251,8 @@
             const closeModalBtn = document.getElementById('close-modal-btn');
             const addWordForm = document.getElementById('add-word-form');
             const addToSlabBtn = document.getElementById('add-to-slab-btn');
+            const timerContainer = document.getElementById('timer-container');
+            const timerBar = document.getElementById('timer-bar');
 
             async function init() {
                 loadVoices();
@@ -301,6 +316,9 @@
                     clearTimeout(nextWordTimeoutId);
                     nextWordTimeoutId = null;
                 }
+                checkBtn.disabled = false;
+                timerContainer.classList.add('hidden');
+                timerBar.classList.remove('shrinking-bar');
             }
 
             function loadVoices() {
@@ -494,10 +512,18 @@
                     feedbackMessageEl.classList.add('incorrect');
                     feedbackMessageEl.classList.remove('correct');
 
+                    checkBtn.disabled = true;
+                    timerContainer.classList.remove('hidden');
+                    timerBar.classList.add('shrinking-bar');
+
                     incorrectFeedbackTimeoutId = setTimeout(() => {
                          if (feedbackMessageEl.innerHTML.includes(correctSpelling)) {
                              feedbackMessageEl.innerHTML = `Try again.`;
                          }
+                         checkBtn.disabled = false;
+                         timerContainer.classList.add('hidden');
+                         timerBar.classList.remove('shrinking-bar');
+
                     }, 10000);
 
                     spellInput.classList.add('border-red-500');
