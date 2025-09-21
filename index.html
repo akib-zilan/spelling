@@ -1,701 +1,630 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spelling Practice App</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg-color: #f0f7f8;
-            --primary-color: #14b8a6; /* Teal 500 */
-            --primary-hover: #0d9488; /* Teal 600 */
-            --secondary-color: #475569; /* Slate 600 */
-            --text-color: #334155; /* Slate 700 */
-            --card-bg: rgba(255, 255, 255, 0.9);
-            --border-color: #e2e8f0; /* Slate 200 */
-        }
-
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-color);
-            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d1fae5' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            font-family: 'Poppins', sans-serif;
+            background-color: #1a202c;
+            background-image: radial-gradient(circle at 1px 1px, #374151 1px, transparent 0);
+            background-size: 20px 20px;
         }
 
-        .card {
-            background-color: var(--card-bg);
-            border-radius: 1.5rem;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -2px rgba(0,0,0,0.05);
+        .glassmorphism {
+            background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         
-        .glass-sidebar {
-            background: rgba(255, 255, 255, 0.6);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
-            border-right: 1px solid rgba(255, 255, 255, 0.2);
+        @keyframes score-update {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.25); }
+            100% { transform: scale(1); }
         }
 
-        .btn-primary {
-            background-color: var(--primary-color);
-            color: white;
-            font-weight: 600;
-            border-radius: 0.75rem;
-            padding: 0.875rem 1.5rem;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px 0 rgba(20, 184, 166, 0.3);
-            border: none;
+        .score-updated {
+            animation: score-update 0.3s ease-in-out;
         }
-        .btn-primary:hover {
-            background-color: var(--primary-hover);
-            transform: translateY(-2px);
-            box-shadow: 0 7px 20px 0 rgba(20, 184, 166, 0.35);
-        }
-        
-        .btn-primary i {
-            vertical-align: middle;
-        }
-
-        .btn-secondary {
-            background-color: #f1f5f9; /* Slate 100 */
-            color: var(--secondary-color);
-            font-weight: 600;
-            border-radius: 0.75rem;
-            padding: 0.875rem 1.5rem;
-            transition: all 0.2s;
-            border: 1px solid var(--border-color);
-        }
-        .btn-secondary:hover {
-            background-color: #e2e8f0; /* Slate 200 */
-            transform: translateY(-2px);
-        }
-        
-        .input-field {
-            border: 2px solid var(--border-color);
-            border-radius: 0.75rem;
-            padding: 1rem 1.25rem;
-            transition: border-color 0.3s, box-shadow 0.3s;
-            width: 100%;
-            font-size: 1rem;
-            font-weight: 500;
-            background-color: #f8fafc;
-        }
-        .input-field#spell-input {
-            font-size: 1.25rem;
-        }
-        .input-field:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.2);
-        }
-
-        .correct-input { border-color: #22c55e; background-color: #f0fdf4; }
-        .incorrect-input { border-color: #ef4444; background-color: #fef2f2; }
-
-        .feedback.correct { color: #16a34a; }
-        .feedback.incorrect { color: #dc2626; }
-        
-        .block-btn {
-            background-color: #fff;
-            color: var(--text-color);
-            font-weight: 600;
-            border-radius: 0.75rem;
-            padding: 0.75rem 1rem;
-            transition: all 0.2s ease-in-out;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .block-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 4px 10px -1px rgba(0,0,0,0.07);
-            border-color: #cbd5e1;
-        }
-        .block-btn.active {
-            background-color: var(--primary-color);
-            color: white;
-            border-color: var(--primary-color);
-        }
-        .block-btn.slab { background-color: #fffbeb; color: #d97706; border-color: #fcd34d; }
-        .block-btn.slab.active { background-color: #f59e0b; color: white; border-color: #f59e0b; }
-
-        .block-btn.bar { background-color: #fff1f2; color: #e11d48; border-color: #fecdd3; }
-        .block-btn.bar.active { background-color: #be123c; color: white; border-color: #be123c; }
-
-        .progress-bar-bg { background-color: #e2e8f0; }
-        .progress-bar-fg { background-color: var(--primary-color); transition: width 0.5s ease-out; }
-
-        @keyframes point-up { 0% { transform: scale(1) translateY(0); opacity: 1; } 100% { transform: scale(1.5) translateY(-10px); opacity: 0; } }
-        .point-increase { animation: point-up 0.6s ease-out; }
-
-        @keyframes point-down { 0% { transform: scale(1) translateY(0); opacity: 1; } 100% { transform: scale(1.5) translateY(10px); opacity: 0; } }
-        .point-decrease { animation: point-down 0.6s ease-out; }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4">
 
-    <main class="w-full max-w-4xl mx-auto">
-        <header id="main-header" class="text-center mb-8">
-            <h1 class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-500 to-cyan-600 pb-2">SpellCraft AI</h1>
-            <p class="text-slate-500 mt-2 text-lg">Hone your spelling skills. Choose a block to begin.</p>
-        </header>
+<body class="text-white">
 
-        <!-- Block Selection -->
-        <div id="block-selection" class="card p-8">
-             <div class="text-center mb-8 flex flex-col sm:flex-row justify-center items-center gap-4">
-                <button id="add-word-btn" class="btn-primary inline-flex items-center gap-2">
-                    <i class="ph-bold ph-plus-circle text-xl"></i>
-                    <span>Add New Words</span>
+    <div id="app-container" class="min-h-screen flex items-center justify-center p-4">
+
+        <!-- Main Menu -->
+        <div id="main-menu" class="w-full max-w-4xl mx-auto fade-in">
+            <header class="text-center mb-8">
+                <h1 id="main-header" class="text-4xl font-bold tracking-tight text-teal-300">Spelling Practice</h1>
+                <p class="text-gray-400 mt-2">Choose a block to start practicing.</p>
+            </header>
+            <div id="block-container" class="space-y-6">
+                <!-- Word blocks will be dynamically inserted here -->
+            </div>
+            <div class="mt-8 flex justify-center space-x-4">
+                 <button id="add-words-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-lg">
+                    <i class="fas fa-plus mr-2"></i>Add New Words
                 </button>
-                <button id="reset-score-btn" class="btn-secondary inline-flex items-center gap-2">
-                    <i class="ph-bold ph-trash text-xl"></i>
-                    <span>Reset Progress</span>
+                 <button id="reset-score-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-lg">
+                    <i class="fas fa-undo mr-2"></i>Reset Progress
                 </button>
-             </div>
-             <h2 class="text-xl font-bold text-slate-700 text-center mb-2">Word Blocks</h2>
-             <p class="text-slate-500 text-center mb-6">Start with the basics.</p>
-             <div id="block-container" class="flex flex-wrap justify-center gap-4">
-                <!-- Block buttons will be generated here -->
-             </div>
-             <div id="slab-block-wrapper" class="mt-6 hidden">
-                <div class="border-t my-6 border-slate-200"></div>
-                <h2 class="text-xl font-bold text-slate-700 text-center mb-2">Practice Slabs</h2>
-                <p class="text-slate-500 text-center mb-6">Review the words you found tricky.</p>
-                <div id="slab-container" class="flex flex-wrap justify-center gap-4">
-                </div>
-             </div>
-             <div id="bar-block-wrapper" class="mt-6 hidden">
-                <div class="border-t my-6 border-slate-200"></div>
-                <h2 class="text-xl font-bold text-slate-700 text-center mb-2">Focus Bars</h2>
-                <p class="text-slate-500 text-center mb-6">Master the toughest words.</p>
-                <div id="bar-container" class="flex flex-wrap justify-center gap-4">
-                </div>
-             </div>
+            </div>
         </div>
 
-        <!-- Spelling App Card -->
-        <div id="app-card" class="card hidden overflow-hidden">
-            <div class="grid md:grid-cols-[280px_1fr]">
-                <!-- Sidebar -->
-                <div class="glass-sidebar p-6 flex flex-col justify-between">
-                    <div>
-                        <button id="home-btn" class="flex items-center gap-2 text-slate-600 font-semibold hover:text-teal-600 transition-colors mb-8">
-                            <i class="ph ph-arrow-left"></i> Main Menu
-                        </button>
-                        <h3 class="font-bold text-slate-700 text-lg mb-4">Your Progress</h3>
-                        <div id="progress-indicator" class="text-sm font-semibold text-slate-500 mb-2">Word 0 of 0</div>
-                        <div class="w-full progress-bar-bg rounded-full h-2.5">
-                            <div id="progress-bar" class="progress-bar-fg h-2.5 rounded-full" style="width: 0%"></div>
+        <!-- Practice Interface -->
+        <div id="practice-interface" class="w-full max-w-2xl hidden fade-in">
+             <div class="glassmorphism rounded-2xl shadow-2xl p-6 md:p-8">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Left/Top Section: Score & Progress -->
+                    <div class="md:col-span-1 md:border-r md:border-gray-600 md:pr-6 flex flex-col justify-between">
+                         <div>
+                            <div class="flex items-center justify-between mb-4">
+                               <h2 id="practice-title" class="text-xl font-bold text-teal-300">Block 1</h2>
+                               <button id="home-btn" class="text-gray-400 hover:text-white transition">
+                                   <i class="fas fa-times text-2xl"></i>
+                               </button>
+                           </div>
+                           <div class="text-center bg-gray-900/50 p-4 rounded-lg">
+                               <p class="text-gray-400 text-sm">TOTAL SCORE</p>
+                               <p id="live-score" class="text-4xl font-bold text-white">0</p>
+                           </div>
+                        </div>
+
+                        <div class="mt-6">
+                             <p id="progress-text" class="text-sm text-gray-400 text-center mb-2">Word 1 of 20</p>
+                             <div class="w-full bg-gray-700 rounded-full h-2.5">
+                                <div id="progress-bar" class="bg-teal-500 h-2.5 rounded-full transition-all duration-300" style="width: 5%"></div>
+                             </div>
                         </div>
                     </div>
-                    <div class="text-center">
-                         <p class="text-slate-500 font-medium mb-1">TOTAL SCORE</p>
-                         <span id="live-score" class="font-bold text-5xl text-teal-500 transition-colors duration-300">0</span>
-                    </div>
-                </div>
 
-                <!-- Main Content -->
-                <div class="p-8 md:p-12 flex flex-col justify-center">
-                    <div class="text-center">
-                        <p class="text-slate-500 mb-2 font-semibold tracking-wider text-sm">DEFINITION</p>
-                        <p id="definition" class="text-2xl font-medium text-slate-800 leading-relaxed min-h-[64px]"></p>
-                    </div>
+                    <!-- Right/Bottom Section: Practice Area -->
+                     <div class="md:col-span-2 flex flex-col justify-center">
+                        <div class="text-center">
+                            <p class="text-gray-400 mb-1">DEFINITION</p>
+                            <p id="definition" class="text-lg min-h-[56px] flex items-center justify-center">Definition of the word goes here.</p>
+                        </div>
+                        <div class="mt-6 flex items-center justify-center space-x-3">
+                             <input type="text" id="spell-input" class="w-full bg-gray-900/50 border-2 border-gray-600 rounded-lg py-3 px-4 text-center text-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition" placeholder="Type the word here..." autocomplete="off" spellcheck="false">
+                            <button id="speak-btn" class="bg-gray-700 hover:bg-gray-600 p-3 rounded-full text-xl transition transform hover:scale-110 aspect-square flex items-center justify-center">
+                                <i class="fas fa-volume-up"></i>
+                            </button>
+                        </div>
+                        <div id="feedback-message" class="mt-4 text-center min-h-[24px] hidden items-center justify-center"></div>
 
-                    <button id="hear-word" class="mt-6 mx-auto flex items-center gap-3 px-6 py-3 bg-teal-50 text-teal-700 font-semibold rounded-full hover:bg-teal-100 transition-colors text-lg">
-                        <i class="ph-bold ph-speaker-high text-2xl"></i>
-                        Hear the Word
-                    </button>
-
-                    <div class="mt-10">
-                         <input type="text" id="spell-input" class="input-field text-center" placeholder="Type your spelling..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-                         <div id="feedback-message" class="feedback text-center font-semibold mt-4 h-6 flex items-center justify-center gap-2"></div>
-                    </div>
-
-                    <div class="mt-8 grid grid-cols-2 gap-4">
-                        <button id="skip-btn" class="btn-secondary w-full text-lg">Skip Word</button>
-                        <button id="check-btn" class="btn-primary w-full text-lg">Check</button>
-                    </div>
-                    
-                    <div class="flex justify-center gap-4 mt-6">
-                        <button id="prev-word" class="bg-slate-200 hover:bg-slate-300 text-slate-600 w-12 h-12 flex items-center justify-center rounded-full text-xl transition-colors disabled:opacity-50"><i class="ph-bold ph-arrow-left"></i></button>
-                        <button id="next-word" class="bg-slate-200 hover:bg-slate-300 text-slate-600 w-12 h-12 flex items-center justify-center rounded-full text-xl transition-colors"><i class="ph-bold ph-arrow-right"></i></button>
+                        <div class="mt-6 grid grid-cols-2 gap-4">
+                            <button id="prev-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition"><i class="fas fa-arrow-left mr-2"></i> Previous</button>
+                            <button id="next-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition">Next <i class="fas fa-arrow-right ml-2"></i></button>
+                            <button id="skip-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-4 rounded-lg transition col-span-1">Skip</button>
+                            <button id="check-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition col-span-1">Check Spelling</button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
         
         <!-- Completion Screen -->
-        <div id="completion-screen" class="card p-8 md:p-16 text-center hidden">
-            <i class="ph-fill ph-confetti text-7xl text-teal-500"></i>
-            <h2 class="text-4xl font-extrabold text-slate-800 mt-4">Block Complete!</h2>
-            <p class="text-xl text-slate-500 mt-4">Fantastic work. Keep the momentum going!</p>
-            <div id="final-score" class="text-xl font-medium text-slate-600 my-8 bg-teal-50 rounded-xl p-4"></div>
-            <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <button id="retry-block" class="btn-primary">Practice Again</button>
-                <button id="choose-another-block" class="btn-secondary">Choose Another Block</button>
+        <div id="completion-screen" class="text-center hidden fade-in">
+             <div class="glassmorphism p-8 rounded-2xl shadow-2xl">
+                <h2 class="text-3xl font-bold text-teal-300">Block Complete!</h2>
+                <p id="final-score" class="text-xl mt-4">You got 18 out of 20 correct.</p>
+                <p id="final-points" class="text-lg mt-2 text-gray-300">Total Points: 150</p>
+                <div class="mt-8 flex justify-center space-x-4">
+                    <button id="retry-block-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105">Try Again</button>
+                    <button id="main-menu-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105">Main Menu</button>
+                </div>
             </div>
         </div>
-    </main>
+
+    </div>
 
     <!-- Add Word Modal -->
-    <div id="add-word-modal" class="fixed inset-0 bg-slate-900 bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 hidden z-50">
-        <div class="card w-full max-w-md p-8">
-            <h2 class="text-2xl font-bold text-slate-800 mb-6">Add a New Word</h2>
+    <div id="add-word-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden">
+        <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-md relative">
+            <button id="close-modal-btn" class="absolute top-4 right-4 text-gray-400 hover:text-white">&times;</button>
+            <h3 class="text-2xl font-bold mb-6 text-teal-300">Add a New Word</h3>
             <form id="add-word-form">
                 <div class="mb-4">
-                    <label for="new-word" class="block text-sm font-medium text-slate-600 mb-2">Word</label>
-                    <input type="text" id="new-word" class="input-field w-full" required>
+                    <label for="new-word" class="block text-gray-400 mb-2">Word</label>
+                    <input type="text" id="new-word" class="w-full bg-gray-900/50 border-2 border-gray-600 rounded-lg py-2 px-3 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none" required>
                 </div>
                 <div class="mb-6">
-                    <label for="new-definition" class="block text-sm font-medium text-slate-600 mb-2">Definition</label>
-                    <textarea id="new-definition" rows="3" class="input-field w-full" required></textarea>
+                    <label for="new-definition" class="block text-gray-400 mb-2">Definition</label>
+                    <input type="text" id="new-definition" class="w-full bg-gray-900/50 border-2 border-gray-600 rounded-lg py-2 px-3 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none" required>
                 </div>
-                <div class="flex justify-end gap-4">
-                    <button type="button" id="cancel-add-word" class="btn-secondary">Cancel</button>
-                    <button type="submit" class="btn-primary">Save Word</button>
-                </div>
+                <button type="submit" class="w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition">Add Word</button>
             </form>
         </div>
     </div>
 
-    <!-- Reset Score Modal -->
-    <div id="reset-score-modal" class="fixed inset-0 bg-slate-900 bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 hidden z-50">
-        <div class="card w-full max-w-sm p-8">
-            <h2 class="text-2xl font-bold text-slate-800 mb-2">Reset Progress</h2>
-            <p class="text-slate-500 mb-6">This will reset your score and all practice lists. This action cannot be undone. Please enter the PIN to confirm.</p>
-            <form id="reset-score-form">
-                <div class="mb-4">
-                    <label for="pin-input" class="block text-sm font-medium text-slate-600 mb-2">PIN</label>
-                    <input type="password" id="pin-input" class="input-field w-full text-center tracking-widest" required maxlength="4" pattern="\d*">
-                     <p id="pin-error" class="text-red-500 text-sm mt-2 h-4"></p>
-                </div>
-                <div class="flex justify-end gap-4 mt-6">
-                    <button type="button" id="cancel-reset-score" class="btn-secondary">Cancel</button>
-                    <button type="submit" class="btn-primary bg-red-600 hover:bg-red-700">Reset Now</button>
-                </div>
-            </form>
-        </div>
-    </div>
 
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <script src="words.js"></script>
-    <script type="module">
-        // Firebase Imports
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // App constants and variables
-        const BLOCK_SIZE = 20;
-        let wordBlocks = [];
-        let incorrectWords = [];
-        let barWords = [];
-        let originalBlockCount = 0;
-        let currentBlockIndex = -1;
-        let currentWordIndex = 0;
-        let score = 0;
-        let totalPoints = 0;
-        let wordsInCurrentBlock = [];
-        let selectedVoice = null;
-        let isAppInitialized = false;
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
 
-        // DOM Elements
-        const mainHeader = document.getElementById('main-header');
-        const blockContainer = document.getElementById('block-container');
-        const slabContainer = document.getElementById('slab-container');
-        const slabWrapper = document.getElementById('slab-block-wrapper');
-        const barContainer = document.getElementById('bar-container');
-        const barWrapper = document.getElementById('bar-block-wrapper');
-        const blockSelectionEl = document.getElementById('block-selection');
-        const appCardEl = document.getElementById('app-card');
-        const completionScreenEl = document.getElementById('completion-screen');
-        const definitionEl = document.getElementById('definition');
-        const hearWordBtn = document.getElementById('hear-word');
-        const spellInput = document.getElementById('spell-input');
-        const checkBtn = document.getElementById('check-btn');
-        const feedbackMessageEl = document.getElementById('feedback-message');
-        const progressIndicatorEl = document.getElementById('progress-indicator');
-        const progressBar = document.getElementById('progress-bar');
-        const nextWordBtn = document.getElementById('next-word');
-        const prevWordBtn = document.getElementById('prev-word');
-        const retryBlockBtn = document.getElementById('retry-block');
-        const chooseAnotherBlockBtn = document.getElementById('choose-another-block');
-        const finalScoreEl = document.getElementById('final-score');
-        const homeBtn = document.getElementById('home-btn');
-        const skipBtn = document.getElementById('skip-btn');
-        const liveScoreEl = document.getElementById('live-score');
-        const addWordBtn = document.getElementById('add-word-btn');
-        const addWordModal = document.getElementById('add-word-modal');
-        const addWordForm = document.getElementById('add-word-form');
-        const cancelAddWordBtn = document.getElementById('cancel-add-word');
-        const newWordInput = document.getElementById('new-word');
-        const newDefinitionInput = document.getElementById('new-definition');
-        const resetScoreBtn = document.getElementById('reset-score-btn');
-        const resetScoreModal = document.getElementById('reset-score-modal');
-        const resetScoreForm = document.getElementById('reset-score-form');
-        const cancelResetScoreBtn = document.getElementById('cancel-reset-score');
-        const pinInput = document.getElementById('pin-input');
-        const pinError = document.getElementById('pin-error');
+            const firebaseConfig = {
+              apiKey: "AIzaSyC3KlFLZOHYDRKa0k8fkCFwaMNStcv7JCQ",
+              authDomain: "spelling-45b13.firebaseapp.com",
+              projectId: "spelling-45b13",
+              storageBucket: "spelling-45b13.firebasestorage.app",
+              messagingSenderId: "508437399649",
+              appId: "1:508437399649:web:d0ccc685f895d700308220",
+              measurementId: "G-S0J0XLYTHL"
+            };
 
-        // Firebase Setup
-        const firebaseConfig = {
-            apiKey: "AIzaSyC3KlFLZOHYDRKa0k8fkCFwaMNStcv7JCQ",
-            authDomain: "spelling-45b13.firebaseapp.com",
-            projectId: "spelling-45b13",
-            storageBucket: "spelling-45b13.appspot.com",
-            messagingSenderId: "508437399649",
-            appId: "1:508437399649:web:d0ccc685f895d700308220",
-            measurementId: "G-S0J0XLYTHL"
-        };
-        const appId = firebaseConfig.projectId;
-        let db, auth, userId, unsubscribeFromData;
+            firebase.initializeApp(firebaseConfig);
+            const db = firebase.firestore();
+            const auth = firebase.auth();
 
-        if (firebaseConfig) {
-            const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
+            let userId = null;
+            let userDataUnsubscribe = null;
+
+            const BLOCK_SIZE = 20;
+            let wordBlocks = [];
+            let slabBlocks = [];
+            let barBlocks = [];
+            let slabs = [];
+            let bars = [];
+
+            let currentBlockData = null;
+            let currentWordIndex = 0;
+            let correctCount = 0;
+            let totalPoints = 0;
+            let wordsInCurrentBlock = [];
+            let selectedVoice = null;
+            let incorrectFeedbackTimeoutId = null;
+
+            const mainMenu = document.getElementById('main-menu');
+            const practiceInterface = document.getElementById('practice-interface');
+            const completionScreen = document.getElementById('completion-screen');
+            const blockContainer = document.getElementById('block-container');
+
+            const practiceTitle = document.getElementById('practice-title');
+            const definitionEl = document.getElementById('definition');
+            const spellInput = document.getElementById('spell-input');
+            const speakBtn = document.getElementById('speak-btn');
+            const checkBtn = document.getElementById('check-btn');
+            const skipBtn = document.getElementById('skip-btn');
+            const homeBtn = document.getElementById('home-btn');
+            const nextBtn = document.getElementById('next-btn');
+            const prevBtn = document.getElementById('prev-btn');
+
+            const liveScoreEl = document.getElementById('live-score');
+            const feedbackMessageEl = document.getElementById('feedback-message');
+            const progressBar = document.getElementById('progress-bar');
+            const progressText = document.getElementById('progress-text');
+
+            const finalScoreEl = document.getElementById('final-score');
+            const finalPointsEl = document.getElementById('final-points');
+            const retryBlockBtn = document.getElementById('retry-block-btn');
+            const mainMenuBtn = document.getElementById('main-menu-btn');
             
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    userId = user.uid;
-                    loadUserData(userId);
-                } else {
-                    try {
-                        await signInAnonymously(auth);
-                    } catch(error) {
-                        console.error("Firebase Auth Error:", error);
-                        // Initialize app with local data if auth fails
-                        initApp();
-                    }
+            const addWordsBtn = document.getElementById('add-words-btn');
+            const resetScoreBtn = document.getElementById('reset-score-btn');
+            const addWordModal = document.getElementById('add-word-modal');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+            const addWordForm = document.getElementById('add-word-form');
+
+            async function init() {
+                loadVoices();
+                if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
+                    speechSynthesis.onvoiceschanged = loadVoices;
                 }
-            });
-        } else {
-            console.warn("Firebase config not found. Running in offline mode.");
-            initApp();
-        }
-
-        function initApp() {
-            if (isAppInitialized) return;
-            isAppInitialized = true;
-
-            loadVoices();
-            if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
-                speechSynthesis.onvoiceschanged = loadVoices;
-            }
-            setupEventListeners();
-            updateAndRenderBlocks();
-            updateScoreDisplay();
-        }
-
-        // --- Firebase Data Functions ---
-        function loadUserData(uid) {
-            const dataRef = doc(db, `/artifacts/${appId}/users/${uid}/spellcraftData/data`);
-            if (unsubscribeFromData) unsubscribeFromData(); // Unsubscribe from previous listener
-            
-            unsubscribeFromData = onSnapshot(dataRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    totalPoints = data.totalPoints || 0;
-                    incorrectWords = data.incorrectWords || [];
-                    barWords = data.barWords || [];
-                } else {
-                    // No data, use defaults
-                    totalPoints = 0;
-                    incorrectWords = [];
-                    barWords = [];
-                }
-                updateScoreDisplay();
-                updateAndRenderBlocks();
-                initApp(); // Initialize the app after the first data load
-            });
-        }
-
-        async function saveUserData() {
-            if (!userId) return; // Don't save if not logged in
-            const dataRef = doc(db, `/artifacts/${appId}/users/${userId}/spellcraftData/data`);
-            try {
-                await setDoc(dataRef, {
-                    totalPoints,
-                    incorrectWords,
-                    barWords
-                }, { merge: true });
-            } catch (error) {
-                console.error("Error saving user data:", error);
-            }
-        }
-        
-        // --- Core App Logic ---
-        function loadVoices() {
-            const voices = speechSynthesis.getVoices();
-            if (voices.length === 0) return;
-            selectedVoice = voices.find(voice => voice.name === 'Google US English') || voices.find(voice => voice.lang === 'en-US' && voice.name.includes('Google')) || voices.find(voice => voice.lang === 'en-US' && !voice.localService) || voices.find(voice => voice.lang === 'en-US');
-        }
-
-        function updateAndRenderBlocks() {
-            wordBlocks = [];
-            for (let i = 0; i < allWords.length; i += BLOCK_SIZE) {
-                wordBlocks.push(allWords.slice(i, i + BLOCK_SIZE));
-            }
-            originalBlockCount = Math.ceil(allWords.length / BLOCK_SIZE);
-
-            let tempIncorrect = [...new Set(incorrectWords.map(w => w.word))].map(word => incorrectWords.find(w => w.word === word));
-            let tempBar = [...new Set(barWords.map(w => w.word))].map(word => barWords.find(w => w.word === word));
-            
-            if (tempIncorrect.length > 0) {
-                for (let i = 0; i < tempIncorrect.length; i += BLOCK_SIZE) {
-                    wordBlocks.push(tempIncorrect.slice(i, i + BLOCK_SIZE));
-                }
-            }
-            if (tempBar.length > 0) {
-                for (let i = 0; i < tempBar.length; i += BLOCK_SIZE) {
-                    wordBlocks.push(tempBar.slice(i, i + BLOCK_SIZE));
-                }
-            }
-            renderBlockButtons();
-        }
-
-        function renderBlockButtons() {
-            blockContainer.innerHTML = '';
-            slabContainer.innerHTML = '';
-            barContainer.innerHTML = '';
-
-            const slabBlockCount = Math.ceil(incorrectWords.length / BLOCK_SIZE);
-            const slabStartIndex = originalBlockCount;
-            const barStartIndex = slabStartIndex + slabBlockCount;
-
-            wordBlocks.forEach((block, index) => {
-                if(block.length === 0) return;
-                const button = document.createElement('button');
-                button.dataset.blockIndex = index;
-                button.classList.add('block-btn');
-
-                if (index < slabStartIndex) {
-                    button.innerHTML = `<i class="ph-fill ph-book-open"></i> Block ${index + 1}`;
-                    blockContainer.appendChild(button);
-                } else if (index < barStartIndex) {
-                    button.innerHTML = `<i class="ph-fill ph-stack-simple"></i> Slab ${index - slabStartIndex + 1}`;
-                    button.classList.add('slab');
-                    slabContainer.appendChild(button);
-                } else {
-                    button.innerHTML = `<i class="ph-fill ph-fire"></i> Bar ${index - barStartIndex + 1}`;
-                    button.classList.add('bar');
-                    barContainer.appendChild(button);
-                }
-            });
-
-            slabWrapper.classList.toggle('hidden', slabContainer.children.length === 0);
-            barWrapper.classList.toggle('hidden', barContainer.children.length === 0);
-        }
-        
-        function setupEventListeners() {
-            blockSelectionEl.addEventListener('click', handleBlockSelection);
-            hearWordBtn.addEventListener('click', speakWord);
-            checkBtn.addEventListener('click', checkSpelling);
-            spellInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); checkSpelling(); } });
-            nextWordBtn.addEventListener('click', () => navigateWord(1));
-            prevWordBtn.addEventListener('click', () => navigateWord(-1));
-            retryBlockBtn.addEventListener('click', retryBlock);
-            chooseAnotherBlockBtn.addEventListener('click', showBlockSelection);
-            homeBtn.addEventListener('click', showBlockSelection);
-            skipBtn.addEventListener('click', skipWord);
-            addWordBtn.addEventListener('click', () => addWordModal.classList.remove('hidden'));
-            cancelAddWordBtn.addEventListener('click', () => addWordModal.classList.add('hidden'));
-            addWordForm.addEventListener('submit', handleAddWord);
-            resetScoreBtn.addEventListener('click', () => {
-                pinInput.value = '';
-                pinError.textContent = '';
-                resetScoreModal.classList.remove('hidden');
-                pinInput.focus();
-            });
-            cancelResetScoreBtn.addEventListener('click', () => resetScoreModal.classList.add('hidden'));
-            resetScoreForm.addEventListener('submit', handleResetScore);
-        }
-
-        function handleAddWord(e) {
-            e.preventDefault();
-            const newWord = newWordInput.value.trim();
-            const newDefinition = newDefinitionInput.value.trim();
-
-            if (newWord && newDefinition) {
-                if (allWords.some(w => w.word.toLowerCase() === newWord.toLowerCase())) {
-                    // Using a custom modal/feedback instead of alert
-                    feedbackMessageEl.textContent = 'This word already exists.';
-                    feedbackMessageEl.classList.add('incorrect');
-                    setTimeout(() => feedbackMessageEl.textContent = '', 2000);
-                    return;
-                }
-                // Note: This adds the word for the current session only.
-                // Persisting the main word list would require saving to Firestore.
-                allWords.push({ word: newWord, definition: newDefinition });
-                addWordForm.reset();
-                addWordModal.classList.add('hidden');
-                updateAndRenderBlocks();
-            }
-        }
-
-        async function handleResetScore(e) {
-            e.preventDefault();
-            const enteredPin = pinInput.value;
-            if (enteredPin === '2542') {
-                totalPoints = 0;
-                incorrectWords = [];
-                barWords = [];
-                await saveUserData(); // This will trigger onSnapshot and re-render
-                resetScoreModal.classList.add('hidden');
-                pinInput.value = '';
-                pinError.textContent = '';
-            } else {
-                pinError.textContent = 'Incorrect PIN. Please try again.';
-                pinInput.value = '';
-                pinInput.focus();
-            }
-        }
-
-        function handleBlockSelection(e) {
-            const button = e.target.closest('.block-btn');
-            if (button) {
-                startBlock(parseInt(button.dataset.blockIndex));
-            }
-        }
-
-        function startBlock(blockIndex) {
-            currentBlockIndex = blockIndex;
-            wordsInCurrentBlock = [...wordBlocks[blockIndex]].sort(() => Math.random() - 0.5);
-            currentWordIndex = 0;
-            score = 0;
-            mainHeader.classList.add('hidden');
-            blockSelectionEl.classList.add('hidden');
-            completionScreenEl.classList.add('hidden');
-            appCardEl.classList.remove('hidden');
-            loadWord();
-        }
-        
-        function loadWord() {
-            const currentWord = wordsInCurrentBlock[currentWordIndex];
-            definitionEl.textContent = currentWord.definition;
-            spellInput.value = '';
-            spellInput.focus();
-            spellInput.className = 'input-field text-center';
-            feedbackMessageEl.innerHTML = '';
-            feedbackMessageEl.className = 'feedback text-center font-semibold mt-4 h-6 flex items-center justify-center gap-2';
-            updateProgress();
-        }
-
-        function speakWord() {
-            if ('speechSynthesis' in window) {
-                const word = wordsInCurrentBlock[currentWordIndex].word;
-                const utterance = new SpeechSynthesisUtterance(word);
-                if (selectedVoice) utterance.voice = selectedVoice;
-                utterance.rate = 0.9;
-                window.speechSynthesis.speak(utterance);
-            } else {
-                feedbackMessageEl.innerHTML = 'Sorry, text-to-speech is not supported on your browser.';
-                feedbackMessageEl.classList.add('incorrect');
-            }
-        }
-        
-        async function checkSpelling() {
-            if (spellInput.disabled) return;
-            const userInput = spellInput.value.trim().toLowerCase();
-            const correctWord = wordsInCurrentBlock[currentWordIndex].word.toLowerCase();
-            spellInput.disabled = true;
-
-            if (userInput === correctWord) {
-                feedbackMessageEl.innerHTML = '<i class="ph-fill ph-check-circle text-2xl"></i> Correct!';
-                feedbackMessageEl.classList.add('correct');
-                spellInput.classList.add('correct-input');
-                score++;
-                totalPoints += 10;
-                updateScoreDisplay('increase');
-                setTimeout(() => navigateWord(1), 1200);
-            } else {
-                feedbackMessageEl.innerHTML = `<i class="ph-fill ph-x-circle text-2xl"></i> Incorrect! The word was: <strong class="ml-1">${wordsInCurrentBlock[currentWordIndex].word}</strong>`;
-                feedbackMessageEl.classList.add('incorrect');
-                spellInput.classList.add('incorrect-input');
-                totalPoints -= 5;
-                updateScoreDisplay('decrease');
+                setupEventListeners();
                 
-                const incorrectWord = wordsInCurrentBlock[currentWordIndex];
-                const slabStartIndex = originalBlockCount;
-                const slabBlockCount = Math.ceil(incorrectWords.length / BLOCK_SIZE);
-                const barStartIndex = slabStartIndex + slabBlockCount;
-
-                if (currentBlockIndex >= slabStartIndex && currentBlockIndex < barStartIndex) {
-                    if (!barWords.some(item => item.word === incorrectWord.word)) barWords.push(incorrectWord);
-                } else if (currentBlockIndex < slabStartIndex) {
-                    if (!incorrectWords.some(item => item.word === incorrectWord.word)) incorrectWords.push(incorrectWord);
-                }
-                setTimeout(() => navigateWord(1), 2500);
+                auth.onAuthStateChanged(async user => {
+                    if (user) {
+                        userId = user.uid;
+                        await loadUserData();
+                        updateAndRenderBlocks();
+                    } else {
+                        await auth.signInAnonymously();
+                    }
+                });
             }
-            await saveUserData();
-        }
+            
+            async function loadUserData() {
+                return new Promise((resolve) => {
+                    const docRef = db.collection('userData').doc(userId);
+                    userDataUnsubscribe = docRef.onSnapshot(doc => {
+                        if (doc.exists) {
+                            const data = doc.data();
+                            totalPoints = data.totalPoints || 0;
+                            slabs = data.slabs || [];
+                            bars = data.bars || [];
+                        } else {
+                            // First time user, initialize data
+                            totalPoints = 0;
+                            slabs = [];
+                            bars = [];
+                        }
+                        updateScoreDisplay();
+                        updateAndRenderBlocks();
+                        resolve();
+                    }, error => {
+                        console.error("Error loading user data:", error);
+                        resolve(); // Resolve even if there's an error to not block the app
+                    });
+                });
+            }
 
-        function navigateWord(direction) {
-            currentWordIndex += direction;
-            if (currentWordIndex >= wordsInCurrentBlock.length) {
-                showCompletionScreen();
-            } else {
-                currentWordIndex = Math.max(0, currentWordIndex);
-                spellInput.disabled = false;
+            async function saveUserData() {
+                if (!userId) return;
+                try {
+                    const userData = { totalPoints, slabs, bars };
+                    await db.collection('userData').doc(userId).set(userData, { merge: true });
+                } catch (error) {
+                    console.error("Error saving user data: ", error);
+                }
+            }
+            
+            function clearIncorrectFeedback() {
+                if (incorrectFeedbackTimeoutId) {
+                    clearTimeout(incorrectFeedbackTimeoutId);
+                    incorrectFeedbackTimeoutId = null;
+                }
+            }
+
+            function loadVoices() {
+                const voices = speechSynthesis.getVoices();
+                if (voices.length === 0) return;
+                selectedVoice = voices.find(voice => voice.name === 'Google US English') ||
+                                voices.find(voice => voice.lang === 'en-US' && voice.name.includes('Google')) ||
+                                voices.find(voice => voice.lang === 'en-US' && !voice.localService) ||
+                                voices.find(voice => voice.lang === 'en-US') ||
+                                voices[0];
+            }
+
+            function updateAndRenderBlocks() {
+                wordBlocks = [];
+                for (let i = 0; i < allWords.length; i += BLOCK_SIZE) {
+                    wordBlocks.push(allWords.slice(i, i + BLOCK_SIZE));
+                }
+                
+                slabBlocks = [];
+                for (let i = 0; i < slabs.length; i += BLOCK_SIZE) {
+                    slabBlocks.push(slabs.slice(i, i + BLOCK_SIZE));
+                }
+
+                barBlocks = [];
+                for (let i = 0; i < bars.length; i += BLOCK_SIZE) {
+                    barBlocks.push(bars.slice(i, i + BLOCK_SIZE));
+                }
+                renderBlocks();
+            }
+            
+            function createGroupContainer(title) {
+                const container = document.createElement('div');
+                const titleEl = document.createElement('h3');
+                titleEl.className = 'text-lg font-semibold text-gray-400 mb-3 pl-2';
+                titleEl.textContent = title;
+                container.appendChild(titleEl);
+                const grid = document.createElement('div');
+                grid.className = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4';
+                container.appendChild(grid);
+                return container;
+            }
+
+            function renderBlocks() {
+                blockContainer.innerHTML = '';
+                const allBlockGroups = [
+                    { title: 'Word Blocks', blocks: wordBlocks, color: 'bg-teal-500', hover: 'hover:bg-teal-600' },
+                    { title: 'Practice Slabs', blocks: slabBlocks, color: 'bg-indigo-500', hover: 'hover:bg-indigo-600' },
+                    { title: 'Challenge Bars', blocks: barBlocks, color: 'bg-rose-500', hover: 'hover:bg-rose-600' },
+                ];
+
+                allBlockGroups.forEach(group => {
+                    if (group.blocks.length > 0) {
+                        const groupEl = createGroupContainer(group.title);
+                        const gridEl = groupEl.querySelector('.grid');
+                        
+                        group.blocks.forEach((block, index) => {
+                            const button = document.createElement('button');
+                            const blockNum = index + 1;
+                            
+                            button.className = `${group.color} ${group.hover} text-white font-bold py-6 rounded-lg transition-transform transform hover:scale-105 shadow-lg flex flex-col items-center justify-center`;
+                            button.innerHTML = `<span class="text-2xl">${blockNum}</span><span class="text-xs mt-1">${group.title.split(' ')[1]}</span>`;
+                            
+                            const isStandardBlock = group.title === 'Word Blocks';
+
+                            if (isStandardBlock && blockNum > 1) {
+                                const requiredScore = (blockNum - 1) * 1000;
+                                if (totalPoints < requiredScore) {
+                                    button.disabled = true;
+                                    button.classList.add('opacity-60', 'cursor-not-allowed', 'relative');
+                                    button.classList.remove(group.hover, 'hover:scale-105');
+                                    button.innerHTML += `
+                                        <div class="absolute inset-0 bg-black bg-opacity-60 rounded-lg flex items-center justify-center">
+                                            <span class="flex items-center text-sm bg-gray-800 px-2 py-1 rounded-full">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="mr-1.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                                ${requiredScore.toLocaleString()}
+                                            </span>
+                                        </div>
+                                    `;
+                                } else {
+                                    button.addEventListener('click', () => startPractice(block, `Block ${blockNum}`));
+                                }
+                            } else {
+                                const title = group.title === 'Practice Slabs' ? `Slab ${blockNum}` : group.title === 'Challenge Bars' ? `Bar ${blockNum}` : `Block ${blockNum}`;
+                                button.addEventListener('click', () => startPractice(block, title));
+                            }
+                            gridEl.appendChild(button);
+                        });
+                        blockContainer.appendChild(groupEl);
+                    }
+                });
+            }
+
+            function startPractice(block, title) {
+                clearIncorrectFeedback();
+                currentBlockData = block;
+                wordsInCurrentBlock = [...block];
+                practiceTitle.textContent = title;
+                currentWordIndex = 0;
+                correctCount = 0;
+                mainMenu.classList.add('hidden');
+                practiceInterface.classList.remove('hidden');
                 loadWord();
             }
-        }
 
-        async function skipWord() {
-            if (spellInput.disabled) return;
-            totalPoints -= 2;
-            updateScoreDisplay('decrease');
-            const skippedWord = wordsInCurrentBlock[currentWordIndex];
-
-            const slabStartIndex = originalBlockCount;
-            const slabBlockCount = Math.ceil(incorrectWords.length / BLOCK_SIZE);
-            const barStartIndex = slabStartIndex + slabBlockCount;
-
-            if (currentBlockIndex >= slabStartIndex && currentBlockIndex < barStartIndex) {
-                 if (!barWords.some(item => item.word === skippedWord.word)) barWords.push(skippedWord);
-            } else {
-                 if (!incorrectWords.some(item => item.word === skippedWord.word)) incorrectWords.push(skippedWord);
+            function loadWord() {
+                if (currentWordIndex < wordsInCurrentBlock.length) {
+                    const word = wordsInCurrentBlock[currentWordIndex];
+                    definitionEl.textContent = word.definition;
+                    spellInput.value = '';
+                    spellInput.disabled = false;
+                    spellInput.focus();
+                    spellInput.classList.remove('border-green-500', 'border-red-500');
+                    spellInput.classList.add('border-gray-600', 'focus:border-teal-500');
+                    feedbackMessageEl.classList.add('hidden');
+                    updateProgress();
+                } else {
+                    showCompletionScreen();
+                }
             }
-            await saveUserData();
-            navigateWord(1);
-        }
 
-        function updateProgress() {
-            const progress = ((currentWordIndex + 1) / wordsInCurrentBlock.length) * 100;
-            progressIndicatorEl.textContent = `Word ${currentWordIndex + 1} of ${wordsInCurrentBlock.length}`;
-            progressBar.style.width = `${progress}%`;
-            prevWordBtn.disabled = currentWordIndex === 0;
-        }
+            function speakWord() {
+                if ('speechSynthesis' in window && wordsInCurrentBlock[currentWordIndex]) {
+                    const word = wordsInCurrentBlock[currentWordIndex].word;
+                    const utterance = new SpeechSynthesisUtterance(word);
+                    if (selectedVoice) {
+                        utterance.voice = selectedVoice;
+                    }
+                    utterance.rate = 0.9;
+                    window.speechSynthesis.speak(utterance);
+                } else {
+                    feedbackMessageEl.textContent = 'Sorry, text-to-speech is not supported.';
+                    feedbackMessageEl.classList.add('incorrect');
+                    feedbackMessageEl.classList.remove('hidden');
+                }
+            }
 
-        function updateScoreDisplay(changeType) {
-            liveScoreEl.textContent = totalPoints;
-            liveScoreEl.classList.toggle('text-teal-500', totalPoints >= 0);
-            liveScoreEl.classList.toggle('text-red-500', totalPoints < 0);
-        }
+            function checkSpelling() {
+                clearIncorrectFeedback();
+                if (spellInput.disabled) return;
+                const typedWord = spellInput.value.trim().toLowerCase();
+                const correctWord = wordsInCurrentBlock[currentWordIndex].word.toLowerCase();
+                const isCorrect = typedWord === correctWord;
 
-        function showCompletionScreen() {
-            appCardEl.classList.add('hidden');
-            completionScreenEl.classList.remove('hidden');
-            finalScoreEl.innerHTML = `You spelled <span class="text-teal-600 font-bold">${score} out of ${wordsInCurrentBlock.length}</span> words correctly. <br> Your total score is now <span class="text-teal-600 font-bold">${totalPoints}</span> points!`;
-        }
+                feedbackMessageEl.classList.remove('hidden');
+                
+                if (isCorrect) {
+                    correctCount++;
+                    totalPoints += 10;
+                    updateScoreDisplay(true);
 
-        function retryBlock() {
-            startBlock(currentBlockIndex);
-        }
-        
-        function showBlockSelection() {
-            mainHeader.classList.remove('hidden');
-            completionScreenEl.classList.add('hidden');
-            appCardEl.classList.add('hidden');
-            blockSelectionEl.classList.remove('hidden');
-            updateAndRenderBlocks();
-        }
+                    feedbackMessageEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block mr-2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Correct!`;
+                    feedbackMessageEl.classList.add('correct');
+                    feedbackMessageEl.classList.remove('incorrect');
+                    spellInput.classList.add('border-green-500');
+                    spellInput.classList.remove('border-red-500', 'border-gray-600', 'focus:border-teal-500');
+                    spellInput.disabled = true;
+
+                    // Remove from slabs/bars if it was there and is now correct
+                    const currentWordObj = wordsInCurrentBlock[currentWordIndex];
+                    let wasInSlab = slabs.findIndex(w => w.word === currentWordObj.word);
+                    if (wasInSlab !== -1) slabs.splice(wasInSlab, 1);
+                    
+                    let wasInBar = bars.findIndex(w => w.word === currentWordObj.word);
+                    if (wasInBar !== -1) bars.splice(wasInBar, 1);
+
+                    setTimeout(() => {
+                        currentWordIndex++;
+                        loadWord();
+                    }, 1000);
+                } else {
+                    totalPoints = Math.max(0, totalPoints - 5);
+                    updateScoreDisplay(false);
+                    const correctSpelling = wordsInCurrentBlock[currentWordIndex].word;
+                    
+                    feedbackMessageEl.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block mr-2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                        Correct spelling: <strong class="font-semibold">${correctSpelling}</strong>
+                    `;
+                    feedbackMessageEl.classList.add('incorrect');
+                    feedbackMessageEl.classList.remove('correct');
+
+                    incorrectFeedbackTimeoutId = setTimeout(() => {
+                         if (feedbackMessageEl.innerHTML.includes(correctSpelling)) {
+                             feedbackMessageEl.innerHTML = `Try again or skip to the next word.`;
+                         }
+                    }, 10000); // 10 seconds
+
+                    spellInput.classList.add('border-red-500');
+                    spellInput.classList.remove('border-green-500', 'border-gray-600', 'focus:border-teal-500');
+
+                    const wordObj = wordsInCurrentBlock[currentWordIndex];
+                    const practiceTitleText = practiceTitle.textContent.toLowerCase();
+
+                    if (practiceTitleText.includes('slab')) {
+                        if (!bars.some(w => w.word === wordObj.word)) bars.push(wordObj);
+                    } else if (!practiceTitleText.includes('bar')) {
+                        if (!slabs.some(w => w.word === wordObj.word)) slabs.push(wordObj);
+                    }
+                }
+                saveUserData();
+            }
+
+            function skipWord() {
+                clearIncorrectFeedback();
+                totalPoints = Math.max(0, totalPoints - 2);
+                updateScoreDisplay(false);
+
+                const wordObj = wordsInCurrentBlock[currentWordIndex];
+                const practiceTitleText = practiceTitle.textContent.toLowerCase();
+
+                if (practiceTitleText.includes('slab')) {
+                    if (!bars.some(w => w.word === wordObj.word)) bars.push(wordObj);
+                } else if (!practiceTitleText.includes('bar')) {
+                    if (!slabs.some(w => w.word === wordObj.word)) slabs.push(wordObj);
+                }
+                
+                saveUserData();
+                currentWordIndex++;
+                loadWord();
+            }
+            
+            function showCompletionScreen() {
+                practiceInterface.classList.add('hidden');
+                completionScreen.classList.remove('hidden');
+                finalScoreEl.textContent = `You got ${correctCount} out of ${wordsInCurrentBlock.length} correct.`;
+                finalPointsEl.textContent = `Your new total score is ${totalPoints.toLocaleString()} points.`;
+            }
+
+            function goToMainMenu() {
+                if (userDataUnsubscribe) userDataUnsubscribe();
+                practiceInterface.classList.add('hidden');
+                completionScreen.classList.add('hidden');
+                mainMenu.classList.remove('hidden');
+                if (auth.currentUser) {
+                    loadUserData().then(updateAndRenderBlocks);
+                }
+            }
+
+            function updateProgress() {
+                const totalWords = wordsInCurrentBlock.length;
+                const currentNum = currentWordIndex + 1;
+                progressText.textContent = `Word ${currentNum} of ${totalWords}`;
+                const percent = totalWords > 0 ? (currentNum / totalWords) * 100 : 0;
+                progressBar.style.width = `${percent}%`;
+            }
+            
+            function updateScoreDisplay(animate = false) {
+                 liveScoreEl.textContent = totalPoints.toLocaleString();
+                 if (animate) {
+                     liveScoreEl.classList.add('score-updated');
+                     setTimeout(() => liveScoreEl.classList.remove('score-updated'), 300);
+                 }
+            }
+            
+            function goToNextWord() {
+                clearIncorrectFeedback();
+                if (currentWordIndex < wordsInCurrentBlock.length - 1) {
+                    currentWordIndex++;
+                    loadWord();
+                }
+            }
+            
+            function goToPrevWord() {
+                clearIncorrectFeedback();
+                if (currentWordIndex > 0) {
+                    currentWordIndex--;
+                    loadWord();
+                }
+            }
+            
+            function setupEventListeners() {
+                checkBtn.addEventListener('click', checkSpelling);
+                spellInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') checkSpelling();
+                });
+                spellInput.addEventListener('focus', () => {
+                    clearIncorrectFeedback();
+                    if (!feedbackMessageEl.classList.contains('correct')) {
+                        feedbackMessageEl.classList.add('hidden');
+                        feedbackMessageEl.classList.remove('incorrect');
+                    }
+                });
+                speakBtn.addEventListener('click', speakWord);
+                skipBtn.addEventListener('click', skipWord);
+                homeBtn.addEventListener('click', goToMainMenu);
+                nextBtn.addEventListener('click', goToNextWord);
+                prevBtn.addEventListener('click', goToPrevWord);
+                
+                mainMenuBtn.addEventListener('click', goToMainMenu);
+                retryBlockBtn.addEventListener('click', () => {
+                    completionScreen.classList.add('hidden');
+                    startPractice(currentBlockData, practiceTitle.textContent);
+                });
+                
+                addWordsBtn.addEventListener('click', () => addWordModal.classList.remove('hidden'));
+                resetScoreBtn.addEventListener('click', () => {
+                    const pin = prompt("To reset your score and all progress, enter the PIN: 2542");
+                    if (pin === "2542") {
+                        totalPoints = 0;
+                        slabs = [];
+                        bars = [];
+                        saveUserData().then(() => {
+                           alert("Your progress has been reset.");
+                           updateAndRenderBlocks();
+                        });
+                    } else if (pin) {
+                        alert("Incorrect PIN.");
+                    }
+                });
+                closeModalBtn.addEventListener('click', () => addWordModal.classList.add('hidden'));
+                addWordForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const newWord = document.getElementById('new-word').value.trim();
+                    const newDefinition = document.getElementById('new-definition').value.trim();
+                    if(newWord && newDefinition){
+                        const newWordObj = { word: newWord, definition: newDefinition };
+                        
+                        const lastBlock = wordBlocks[wordBlocks.length - 1];
+                        if (lastBlock && lastBlock.length < BLOCK_SIZE) {
+                            allWords.push(newWordObj);
+                        } else {
+                            allWords.push(newWordObj);
+                        }
+                        updateAndRenderBlocks();
+                        addWordModal.classList.add('hidden');
+                        addWordForm.reset();
+                        alert(`Word "${newWord}" added! It will be available in the relevant block.`);
+                    }
+                });
+            }
+
+            init();
+        });
     </script>
 </body>
+
 </html>
 
