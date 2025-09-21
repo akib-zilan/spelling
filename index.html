@@ -261,303 +261,378 @@
     </div>
 
     <script src="words.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
+    <script type="module">
+        // Firebase Imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // App constants and variables
+        const BLOCK_SIZE = 20;
+        let wordBlocks = [];
+        let incorrectWords = [];
+        let barWords = [];
+        let originalBlockCount = 0;
+        let currentBlockIndex = -1;
+        let currentWordIndex = 0;
+        let score = 0;
+        let totalPoints = 0;
+        let wordsInCurrentBlock = [];
+        let selectedVoice = null;
+
+        // DOM Elements
+        const mainHeader = document.getElementById('main-header');
+        const blockContainer = document.getElementById('block-container');
+        const slabContainer = document.getElementById('slab-container');
+        const slabWrapper = document.getElementById('slab-block-wrapper');
+        const barContainer = document.getElementById('bar-container');
+        const barWrapper = document.getElementById('bar-block-wrapper');
+        const blockSelectionEl = document.getElementById('block-selection');
+        const appCardEl = document.getElementById('app-card');
+        const completionScreenEl = document.getElementById('completion-screen');
+        const definitionEl = document.getElementById('definition');
+        const hearWordBtn = document.getElementById('hear-word');
+        const spellInput = document.getElementById('spell-input');
+        const checkBtn = document.getElementById('check-btn');
+        const feedbackMessageEl = document.getElementById('feedback-message');
+        const progressIndicatorEl = document.getElementById('progress-indicator');
+        const progressBar = document.getElementById('progress-bar');
+        const nextWordBtn = document.getElementById('next-word');
+        const prevWordBtn = document.getElementById('prev-word');
+        const retryBlockBtn = document.getElementById('retry-block');
+        const chooseAnotherBlockBtn = document.getElementById('choose-another-block');
+        const finalScoreEl = document.getElementById('final-score');
+        const homeBtn = document.getElementById('home-btn');
+        const skipBtn = document.getElementById('skip-btn');
+        const liveScoreEl = document.getElementById('live-score');
+        const addWordBtn = document.getElementById('add-word-btn');
+        const addWordModal = document.getElementById('add-word-modal');
+        const addWordForm = document.getElementById('add-word-form');
+        const cancelAddWordBtn = document.getElementById('cancel-add-word');
+        const newWordInput = document.getElementById('new-word');
+        const newDefinitionInput = document.getElementById('new-definition');
+
+        // Firebase Setup
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-spellcraft-app';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        let db, auth, userId, unsubscribeFromData;
+
+        if (firebaseConfig) {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
             
-            const BLOCK_SIZE = 20;
-            let wordBlocks = [];
-            let incorrectWords = [];
-            let barWords = [];
-            let originalBlockCount = 0;
-            let currentBlockIndex = -1;
-            let currentWordIndex = 0;
-            let score = 0;
-            let totalPoints = 0;
-            let wordsInCurrentBlock = [];
-            let selectedVoice = null;
-
-            const mainHeader = document.getElementById('main-header');
-            const blockContainer = document.getElementById('block-container');
-            const slabContainer = document.getElementById('slab-container');
-            const slabWrapper = document.getElementById('slab-block-wrapper');
-            const barContainer = document.getElementById('bar-container');
-            const barWrapper = document.getElementById('bar-block-wrapper');
-            const blockSelectionEl = document.getElementById('block-selection');
-            const appCardEl = document.getElementById('app-card');
-            const completionScreenEl = document.getElementById('completion-screen');
-            const definitionEl = document.getElementById('definition');
-            const hearWordBtn = document.getElementById('hear-word');
-            const spellInput = document.getElementById('spell-input');
-            const checkBtn = document.getElementById('check-btn');
-            const feedbackMessageEl = document.getElementById('feedback-message');
-            const progressIndicatorEl = document.getElementById('progress-indicator');
-            const progressBar = document.getElementById('progress-bar');
-            const nextWordBtn = document.getElementById('next-word');
-            const prevWordBtn = document.getElementById('prev-word');
-            const retryBlockBtn = document.getElementById('retry-block');
-            const chooseAnotherBlockBtn = document.getElementById('choose-another-block');
-            const finalScoreEl = document.getElementById('final-score');
-            const homeBtn = document.getElementById('home-btn');
-            const skipBtn = document.getElementById('skip-btn');
-            const liveScoreEl = document.getElementById('live-score');
-            const addWordBtn = document.getElementById('add-word-btn');
-            const addWordModal = document.getElementById('add-word-modal');
-            const addWordForm = document.getElementById('add-word-form');
-            const cancelAddWordBtn = document.getElementById('cancel-add-word');
-            const newWordInput = document.getElementById('new-word');
-            const newDefinitionInput = document.getElementById('new-definition');
-
-
-            function init() {
-                loadVoices();
-                if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
-                    speechSynthesis.onvoiceschanged = loadVoices;
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                    loadUserData(userId);
+                    initApp();
+                } else {
+                    try {
+                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                         } else {
+                            await signInAnonymously(auth);
+                         }
+                    } catch(error) {
+                        console.error("Firebase Auth Error:", error);
+                        // Initialize app with local data if auth fails
+                        initApp();
+                    }
                 }
+            });
+        } else {
+            console.warn("Firebase config not found. Running in offline mode.");
+            initApp();
+        }
 
-                updateAndRenderBlocks();
-                setupEventListeners();
+        function initApp() {
+            loadVoices();
+            if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
+                speechSynthesis.onvoiceschanged = loadVoices;
+            }
+            setupEventListeners();
+            updateAndRenderBlocks();
+            updateScoreDisplay();
+        }
+
+        // --- Firebase Data Functions ---
+        function loadUserData(uid) {
+            const dataRef = doc(db, `/artifacts/${appId}/users/${uid}/spellcraftData/data`);
+            if (unsubscribeFromData) unsubscribeFromData(); // Unsubscribe from previous listener
+            
+            unsubscribeFromData = onSnapshot(dataRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    totalPoints = data.totalPoints || 0;
+                    incorrectWords = data.incorrectWords || [];
+                    barWords = data.barWords || [];
+                } else {
+                    // No data, use defaults
+                    totalPoints = 0;
+                    incorrectWords = [];
+                    barWords = [];
+                }
                 updateScoreDisplay();
+                updateAndRenderBlocks();
+            });
+        }
+
+        async function saveUserData() {
+            if (!userId) return; // Don't save if not logged in
+            const dataRef = doc(db, `/artifacts/${appId}/users/${userId}/spellcraftData/data`);
+            try {
+                await setDoc(dataRef, {
+                    totalPoints,
+                    incorrectWords,
+                    barWords
+                }, { merge: true });
+            } catch (error) {
+                console.error("Error saving user data:", error);
             }
+        }
+        
+        // --- Core App Logic ---
+        function loadVoices() {
+            const voices = speechSynthesis.getVoices();
+            if (voices.length === 0) return;
+            selectedVoice = voices.find(voice => voice.name === 'Google US English') || voices.find(voice => voice.lang === 'en-US' && voice.name.includes('Google')) || voices.find(voice => voice.lang === 'en-US' && !voice.localService) || voices.find(voice => voice.lang === 'en-US');
+        }
+
+        function updateAndRenderBlocks() {
+            wordBlocks = [];
+            for (let i = 0; i < allWords.length; i += BLOCK_SIZE) {
+                wordBlocks.push(allWords.slice(i, i + BLOCK_SIZE));
+            }
+            originalBlockCount = Math.ceil(allWords.length / BLOCK_SIZE);
+
+            let tempIncorrect = [...new Set(incorrectWords.map(w => w.word))].map(word => incorrectWords.find(w => w.word === word));
+            let tempBar = [...new Set(barWords.map(w => w.word))].map(word => barWords.find(w => w.word === word));
             
-            function loadVoices() {
-                const voices = speechSynthesis.getVoices();
-                if (voices.length === 0) return;
-                selectedVoice = voices.find(voice => voice.name === 'Google US English') || voices.find(voice => voice.lang === 'en-US' && voice.name.includes('Google')) || voices.find(voice => voice.lang === 'en-US' && !voice.localService) || voices.find(voice => voice.lang === 'en-US');
-            }
-
-            function updateAndRenderBlocks() {
-                wordBlocks = [];
-                for (let i = 0; i < allWords.length; i += BLOCK_SIZE) {
-                    wordBlocks.push(allWords.slice(i, i + BLOCK_SIZE));
-                }
-                originalBlockCount = Math.ceil(allWords.length / BLOCK_SIZE);
-
-
-                let tempIncorrect = [...new Set(incorrectWords.map(w => w.word))].map(word => incorrectWords.find(w => w.word === word));
-                let tempBar = [...new Set(barWords.map(w => w.word))].map(word => barWords.find(w => w.word === word));
-                
-                if (tempIncorrect.length > 0) {
-                    for (let i = 0; i < tempIncorrect.length; i += BLOCK_SIZE) {
-                        wordBlocks.push(tempIncorrect.slice(i, i + BLOCK_SIZE));
-                    }
-                }
-                if (tempBar.length > 0) {
-                    for (let i = 0; i < tempBar.length; i += BLOCK_SIZE) {
-                        wordBlocks.push(tempBar.slice(i, i + BLOCK_SIZE));
-                    }
-                }
-                renderBlockButtons();
-            }
-
-            function renderBlockButtons() {
-                blockContainer.innerHTML = '';
-                slabContainer.innerHTML = '';
-                barContainer.innerHTML = '';
-
-                const slabBlockCount = Math.ceil(incorrectWords.length / BLOCK_SIZE);
-                const slabStartIndex = originalBlockCount;
-                const barStartIndex = slabStartIndex + slabBlockCount;
-
-                wordBlocks.forEach((block, index) => {
-                    if(block.length === 0) return;
-                    const button = document.createElement('button');
-                    button.dataset.blockIndex = index;
-                    button.classList.add('block-btn');
-
-                    if (index < slabStartIndex) {
-                        button.innerHTML = `<i class="ph-fill ph-book-open"></i> Block ${index + 1}`;
-                        blockContainer.appendChild(button);
-                    } else if (index < barStartIndex) {
-                        button.innerHTML = `<i class="ph-fill ph-stack-simple"></i> Slab ${index - slabStartIndex + 1}`;
-                        button.classList.add('slab');
-                        slabContainer.appendChild(button);
-                    } else {
-                        button.innerHTML = `<i class="ph-fill ph-fire"></i> Bar ${index - barStartIndex + 1}`;
-                        button.classList.add('bar');
-                        barContainer.appendChild(button);
-                    }
-                });
-
-                slabWrapper.classList.toggle('hidden', slabContainer.children.length === 0);
-                barWrapper.classList.toggle('hidden', barContainer.children.length === 0);
-            }
-            
-            function setupEventListeners() {
-                blockSelectionEl.addEventListener('click', handleBlockSelection);
-                hearWordBtn.addEventListener('click', speakWord);
-                checkBtn.addEventListener('click', checkSpelling);
-                spellInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); checkSpelling(); } });
-                nextWordBtn.addEventListener('click', () => navigateWord(1));
-                prevWordBtn.addEventListener('click', () => navigateWord(-1));
-                retryBlockBtn.addEventListener('click', retryBlock);
-                chooseAnotherBlockBtn.addEventListener('click', showBlockSelection);
-                homeBtn.addEventListener('click', showBlockSelection);
-                skipBtn.addEventListener('click', skipWord);
-                addWordBtn.addEventListener('click', () => addWordModal.classList.remove('hidden'));
-                cancelAddWordBtn.addEventListener('click', () => addWordModal.classList.add('hidden'));
-                addWordForm.addEventListener('submit', handleAddWord);
-            }
-
-            function handleAddWord(e) {
-                e.preventDefault();
-                const newWord = newWordInput.value.trim();
-                const newDefinition = newDefinitionInput.value.trim();
-
-                if (newWord && newDefinition) {
-                    if (allWords.some(w => w.word.toLowerCase() === newWord.toLowerCase())) {
-                        alert('This word already exists in the list.');
-                        return;
-                    }
-                    allWords.push({ word: newWord, definition: newDefinition });
-                    addWordForm.reset();
-                    addWordModal.classList.add('hidden');
-                    updateAndRenderBlocks();
+            if (tempIncorrect.length > 0) {
+                for (let i = 0; i < tempIncorrect.length; i += BLOCK_SIZE) {
+                    wordBlocks.push(tempIncorrect.slice(i, i + BLOCK_SIZE));
                 }
             }
-
-
-            function handleBlockSelection(e) {
-                const button = e.target.closest('.block-btn');
-                if (button) {
-                    startBlock(parseInt(button.dataset.blockIndex));
+            if (tempBar.length > 0) {
+                for (let i = 0; i < tempBar.length; i += BLOCK_SIZE) {
+                    wordBlocks.push(tempBar.slice(i, i + BLOCK_SIZE));
                 }
             }
+            renderBlockButtons();
+        }
 
-            function startBlock(blockIndex) {
-                currentBlockIndex = blockIndex;
-                wordsInCurrentBlock = [...wordBlocks[blockIndex]].sort(() => Math.random() - 0.5);
-                currentWordIndex = 0;
-                score = 0;
-                mainHeader.classList.add('hidden');
-                blockSelectionEl.classList.add('hidden');
-                completionScreenEl.classList.add('hidden');
-                appCardEl.classList.remove('hidden');
-                loadWord();
-            }
-            
-            function loadWord() {
-                const currentWord = wordsInCurrentBlock[currentWordIndex];
-                definitionEl.textContent = currentWord.definition;
-                spellInput.value = '';
-                spellInput.focus();
-                spellInput.className = 'input-field text-center';
-                feedbackMessageEl.innerHTML = '';
-                feedbackMessageEl.className = 'feedback text-center font-semibold mt-4 h-6 flex items-center justify-center gap-2';
-                updateProgress();
-            }
+        function renderBlockButtons() {
+            blockContainer.innerHTML = '';
+            slabContainer.innerHTML = '';
+            barContainer.innerHTML = '';
 
-            function speakWord() {
-                if ('speechSynthesis' in window) {
-                    const word = wordsInCurrentBlock[currentWordIndex].word;
-                    const utterance = new SpeechSynthesisUtterance(word);
-                    if (selectedVoice) utterance.voice = selectedVoice;
-                    utterance.rate = 0.9;
-                    window.speechSynthesis.speak(utterance);
+            const slabBlockCount = Math.ceil(incorrectWords.length / BLOCK_SIZE);
+            const slabStartIndex = originalBlockCount;
+            const barStartIndex = slabStartIndex + slabBlockCount;
+
+            wordBlocks.forEach((block, index) => {
+                if(block.length === 0) return;
+                const button = document.createElement('button');
+                button.dataset.blockIndex = index;
+                button.classList.add('block-btn');
+
+                if (index < slabStartIndex) {
+                    button.innerHTML = `<i class="ph-fill ph-book-open"></i> Block ${index + 1}`;
+                    blockContainer.appendChild(button);
+                } else if (index < barStartIndex) {
+                    button.innerHTML = `<i class="ph-fill ph-stack-simple"></i> Slab ${index - slabStartIndex + 1}`;
+                    button.classList.add('slab');
+                    slabContainer.appendChild(button);
                 } else {
-                    feedbackMessageEl.innerHTML = 'Sorry, text-to-speech is not supported on your browser.';
+                    button.innerHTML = `<i class="ph-fill ph-fire"></i> Bar ${index - barStartIndex + 1}`;
+                    button.classList.add('bar');
+                    barContainer.appendChild(button);
+                }
+            });
+
+            slabWrapper.classList.toggle('hidden', slabContainer.children.length === 0);
+            barWrapper.classList.toggle('hidden', barContainer.children.length === 0);
+        }
+        
+        function setupEventListeners() {
+            blockSelectionEl.addEventListener('click', handleBlockSelection);
+            hearWordBtn.addEventListener('click', speakWord);
+            checkBtn.addEventListener('click', checkSpelling);
+            spellInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); checkSpelling(); } });
+            nextWordBtn.addEventListener('click', () => navigateWord(1));
+            prevWordBtn.addEventListener('click', () => navigateWord(-1));
+            retryBlockBtn.addEventListener('click', retryBlock);
+            chooseAnotherBlockBtn.addEventListener('click', showBlockSelection);
+            homeBtn.addEventListener('click', showBlockSelection);
+            skipBtn.addEventListener('click', skipWord);
+            addWordBtn.addEventListener('click', () => addWordModal.classList.remove('hidden'));
+            cancelAddWordBtn.addEventListener('click', () => addWordModal.classList.add('hidden'));
+            addWordForm.addEventListener('submit', handleAddWord);
+        }
+
+        function handleAddWord(e) {
+            e.preventDefault();
+            const newWord = newWordInput.value.trim();
+            const newDefinition = newDefinitionInput.value.trim();
+
+            if (newWord && newDefinition) {
+                if (allWords.some(w => w.word.toLowerCase() === newWord.toLowerCase())) {
+                    // Using a custom modal/feedback instead of alert
+                    feedbackMessageEl.textContent = 'This word already exists.';
                     feedbackMessageEl.classList.add('incorrect');
+                    setTimeout(() => feedbackMessageEl.textContent = '', 2000);
+                    return;
                 }
+                // Note: This adds the word for the current session only.
+                // Persisting the main word list would require saving to Firestore.
+                allWords.push({ word: newWord, definition: newDefinition });
+                addWordForm.reset();
+                addWordModal.classList.add('hidden');
+                updateAndRenderBlocks();
             }
-            
-            function checkSpelling() {
-                if (spellInput.disabled) return;
-                const userInput = spellInput.value.trim().toLowerCase();
-                const correctWord = wordsInCurrentBlock[currentWordIndex].word.toLowerCase();
-                spellInput.disabled = true;
+        }
 
-                if (userInput === correctWord) {
-                    feedbackMessageEl.innerHTML = '<i class="ph-fill ph-check-circle text-2xl"></i> Correct!';
-                    feedbackMessageEl.classList.add('correct');
-                    spellInput.classList.add('correct-input');
-                    score++;
-                    totalPoints += 10;
-                    updateScoreDisplay('increase');
-                    setTimeout(() => navigateWord(1), 1200);
-                } else {
-                    feedbackMessageEl.innerHTML = `<i class="ph-fill ph-x-circle text-2xl"></i> Incorrect! The word was: <strong class="ml-1">${wordsInCurrentBlock[currentWordIndex].word}</strong>`;
-                    feedbackMessageEl.classList.add('incorrect');
-                    spellInput.classList.add('incorrect-input');
-                    totalPoints -= 5;
-                    updateScoreDisplay('decrease');
-                    
-                    const incorrectWord = wordsInCurrentBlock[currentWordIndex];
-                    const slabStartIndex = originalBlockCount;
-                    const slabBlockCount = Math.ceil(incorrectWords.length / BLOCK_SIZE);
-                    const barStartIndex = slabStartIndex + slabBlockCount;
-
-                    if (currentBlockIndex >= slabStartIndex && currentBlockIndex < barStartIndex) {
-                        if (!barWords.some(item => item.word === incorrectWord.word)) barWords.push(incorrectWord);
-                    } else if (currentBlockIndex < slabStartIndex) {
-                        if (!incorrectWords.some(item => item.word === incorrectWord.word)) incorrectWords.push(incorrectWord);
-                    }
-                    setTimeout(() => navigateWord(1), 2500);
-                }
+        function handleBlockSelection(e) {
+            const button = e.target.closest('.block-btn');
+            if (button) {
+                startBlock(parseInt(button.dataset.blockIndex));
             }
+        }
 
-            function navigateWord(direction) {
-                currentWordIndex += direction;
-                if (currentWordIndex >= wordsInCurrentBlock.length) {
-                    showCompletionScreen();
-                } else {
-                    currentWordIndex = Math.max(0, currentWordIndex);
-                    spellInput.disabled = false;
-                    loadWord();
-                }
+        function startBlock(blockIndex) {
+            currentBlockIndex = blockIndex;
+            wordsInCurrentBlock = [...wordBlocks[blockIndex]].sort(() => Math.random() - 0.5);
+            currentWordIndex = 0;
+            score = 0;
+            mainHeader.classList.add('hidden');
+            blockSelectionEl.classList.add('hidden');
+            completionScreenEl.classList.add('hidden');
+            appCardEl.classList.remove('hidden');
+            loadWord();
+        }
+        
+        function loadWord() {
+            const currentWord = wordsInCurrentBlock[currentWordIndex];
+            definitionEl.textContent = currentWord.definition;
+            spellInput.value = '';
+            spellInput.focus();
+            spellInput.className = 'input-field text-center';
+            feedbackMessageEl.innerHTML = '';
+            feedbackMessageEl.className = 'feedback text-center font-semibold mt-4 h-6 flex items-center justify-center gap-2';
+            updateProgress();
+        }
+
+        function speakWord() {
+            if ('speechSynthesis' in window) {
+                const word = wordsInCurrentBlock[currentWordIndex].word;
+                const utterance = new SpeechSynthesisUtterance(word);
+                if (selectedVoice) utterance.voice = selectedVoice;
+                utterance.rate = 0.9;
+                window.speechSynthesis.speak(utterance);
+            } else {
+                feedbackMessageEl.innerHTML = 'Sorry, text-to-speech is not supported on your browser.';
+                feedbackMessageEl.classList.add('incorrect');
             }
+        }
+        
+        async function checkSpelling() {
+            if (spellInput.disabled) return;
+            const userInput = spellInput.value.trim().toLowerCase();
+            const correctWord = wordsInCurrentBlock[currentWordIndex].word.toLowerCase();
+            spellInput.disabled = true;
 
-            function skipWord() {
-                if (spellInput.disabled) return;
-                totalPoints -= 2;
+            if (userInput === correctWord) {
+                feedbackMessageEl.innerHTML = '<i class="ph-fill ph-check-circle text-2xl"></i> Correct!';
+                feedbackMessageEl.classList.add('correct');
+                spellInput.classList.add('correct-input');
+                score++;
+                totalPoints += 10;
+                updateScoreDisplay('increase');
+                setTimeout(() => navigateWord(1), 1200);
+            } else {
+                feedbackMessageEl.innerHTML = `<i class="ph-fill ph-x-circle text-2xl"></i> Incorrect! The word was: <strong class="ml-1">${wordsInCurrentBlock[currentWordIndex].word}</strong>`;
+                feedbackMessageEl.classList.add('incorrect');
+                spellInput.classList.add('incorrect-input');
+                totalPoints -= 5;
                 updateScoreDisplay('decrease');
-                const skippedWord = wordsInCurrentBlock[currentWordIndex];
-
+                
+                const incorrectWord = wordsInCurrentBlock[currentWordIndex];
                 const slabStartIndex = originalBlockCount;
                 const slabBlockCount = Math.ceil(incorrectWords.length / BLOCK_SIZE);
                 const barStartIndex = slabStartIndex + slabBlockCount;
 
                 if (currentBlockIndex >= slabStartIndex && currentBlockIndex < barStartIndex) {
-                     if (!barWords.some(item => item.word === skippedWord.word)) barWords.push(skippedWord);
-                } else {
-                     if (!incorrectWords.some(item => item.word === skippedWord.word)) incorrectWords.push(skippedWord);
+                    if (!barWords.some(item => item.word === incorrectWord.word)) barWords.push(incorrectWord);
+                } else if (currentBlockIndex < slabStartIndex) {
+                    if (!incorrectWords.some(item => item.word === incorrectWord.word)) incorrectWords.push(incorrectWord);
                 }
-                navigateWord(1);
+                setTimeout(() => navigateWord(1), 2500);
             }
+            await saveUserData();
+        }
 
-            function updateProgress() {
-                const progress = ((currentWordIndex + 1) / wordsInCurrentBlock.length) * 100;
-                progressIndicatorEl.textContent = `Word ${currentWordIndex + 1} of ${wordsInCurrentBlock.length}`;
-                progressBar.style.width = `${progress}%`;
-                prevWordBtn.disabled = currentWordIndex === 0;
+        function navigateWord(direction) {
+            currentWordIndex += direction;
+            if (currentWordIndex >= wordsInCurrentBlock.length) {
+                showCompletionScreen();
+            } else {
+                currentWordIndex = Math.max(0, currentWordIndex);
+                spellInput.disabled = false;
+                loadWord();
             }
+        }
 
-            function updateScoreDisplay(changeType) {
-                liveScoreEl.textContent = totalPoints;
-                liveScoreEl.classList.toggle('text-teal-500', totalPoints >= 0);
-                liveScoreEl.classList.toggle('text-red-500', totalPoints < 0);
-            }
+        async function skipWord() {
+            if (spellInput.disabled) return;
+            totalPoints -= 2;
+            updateScoreDisplay('decrease');
+            const skippedWord = wordsInCurrentBlock[currentWordIndex];
 
-            function showCompletionScreen() {
-                appCardEl.classList.add('hidden');
-                completionScreenEl.classList.remove('hidden');
-                finalScoreEl.innerHTML = `You spelled <span class="text-teal-600 font-bold">${score} out of ${wordsInCurrentBlock.length}</span> words correctly. <br> Your total score is now <span class="text-teal-600 font-bold">${totalPoints}</span> points!`;
-            }
+            const slabStartIndex = originalBlockCount;
+            const slabBlockCount = Math.ceil(incorrectWords.length / BLOCK_SIZE);
+            const barStartIndex = slabStartIndex + slabBlockCount;
 
-            function retryBlock() {
-                startBlock(currentBlockIndex);
+            if (currentBlockIndex >= slabStartIndex && currentBlockIndex < barStartIndex) {
+                 if (!barWords.some(item => item.word === skippedWord.word)) barWords.push(skippedWord);
+            } else {
+                 if (!incorrectWords.some(item => item.word === skippedWord.word)) incorrectWords.push(skippedWord);
             }
-            
-            function showBlockSelection() {
-                mainHeader.classList.remove('hidden');
-                completionScreenEl.classList.add('hidden');
-                appCardEl.classList.add('hidden');
-                blockSelectionEl.classList.remove('hidden');
-                updateAndRenderBlocks();
-            }
-            
-            init();
-        });
+            await saveUserData();
+            navigateWord(1);
+        }
+
+        function updateProgress() {
+            const progress = ((currentWordIndex + 1) / wordsInCurrentBlock.length) * 100;
+            progressIndicatorEl.textContent = `Word ${currentWordIndex + 1} of ${wordsInCurrentBlock.length}`;
+            progressBar.style.width = `${progress}%`;
+            prevWordBtn.disabled = currentWordIndex === 0;
+        }
+
+        function updateScoreDisplay(changeType) {
+            liveScoreEl.textContent = totalPoints;
+            liveScoreEl.classList.toggle('text-teal-500', totalPoints >= 0);
+            liveScoreEl.classList.toggle('text-red-500', totalPoints < 0);
+        }
+
+        function showCompletionScreen() {
+            appCardEl.classList.add('hidden');
+            completionScreenEl.classList.remove('hidden');
+            finalScoreEl.innerHTML = `You spelled <span class="text-teal-600 font-bold">${score} out of ${wordsInCurrentBlock.length}</span> words correctly. <br> Your total score is now <span class="text-teal-600 font-bold">${totalPoints}</span> points!`;
+        }
+
+        function retryBlock() {
+            startBlock(currentBlockIndex);
+        }
+        
+        function showBlockSelection() {
+            mainHeader.classList.remove('hidden');
+            completionScreenEl.classList.add('hidden');
+            appCardEl.classList.add('hidden');
+            blockSelectionEl.classList.remove('hidden');
+            updateAndRenderBlocks();
+        }
     </script>
 </body>
 </html>
-
 
