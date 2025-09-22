@@ -41,26 +41,19 @@ const allWords = [
  
   { word: "Allegation", definition: "claim of wrongdoing" },
  
-  { word: "Animosity", definition: "strong hostility" },
-  { word: "Anomaly", definition: "deviation from the norm" },
-  { word: "Arbitrary", definition: "based on random choice" },
+ 
   { word: "Ascertain", definition: "find out for certain" },
   { word: "Belligerent", definition: "hostile and aggressive" },
   { word: "Capitulate", definition: "surrender" },
   { word: "Censure", definition: "express severe disapproval" },
   { word: "Coercion", definition: "use of force or threats" },
   { word: "Collusion", definition: "secret cooperation for deceitful purposes" },
-  { word: "Conjecture", definition: "opinion formed without evidence" },
-  { word: "Conspicuous", definition: "easily seen or noticed" },
-  { word: "Contingency", definition: "future event that's possible but not certain" },
+  
   { word: "Contravene", definition: "violate a law or rule" },
-  { word: "Convoluted", definition: "extremely complex" },
-  { word: "Decorum", definition: "behavior keeping with good taste" },
-  { word: "Defamation", definition: "damaging someone's reputation" },
-  { word: "Denigrate", definition: "criticize unfairly" },
+ 
   { word: "Disparate", definition: "fundamentally different or distinct" },
   { word: "Disseminate", definition: "spread widely" },
-  { word: "Doppelgänger", definition: "someone who looks like another person" },
+ 
   { word: "Echelon", definition: "rank in an organization" },
   { word: "Egalitarian", definition: "promoting equal rights" },
   { word: "Elucidate", definition: "make clear; explain" },
@@ -619,5 +612,6 @@ const allWords = [
   { word: "Tangible assets", definition: "physical assets like equipment or property" },
   { word: "Treasury bonds", definition: "government debt securities with long maturity" }
 ];
+
 
 
