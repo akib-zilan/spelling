@@ -1,63 +1,46 @@
 const allWords = [
   { word: "Accusation", definition: "claim that someone has done something wrong" },
   { word: "Acolyte", definition: "devoted follower" },
-  { word: "Autonomy", definition: "independence; self-governance" },
-  { word: "Scathing", definition: "severely critical" },
-  { word: "Apex", definition: "the highest point" },
+  
   { word: "Bureaucracy", definition: "administrative system with many rules" },
   { word: "Coalition", definition: "temporary alliance for combined action" },
   { word: "Consensus", definition: "general agreement" },
   { word: "Dissent", definition: "disagreement with commonly held views" },
   { word: "Legislature", definition: "law-making body" },
-  { word: "Incumbent", definition: "holding a particular office currently" },
-  { word: "Opponent", definition: "person competing against another" },
+  
   { word: "Referendum", definition: "general vote by the electorate" },
-  { word: "Advocacy", definition: "public support for a cause" },
-  { word: "Amendment", definition: "official change to a document or law" },
+  
   { word: "Beneficiary", definition: "recipient of benefits" },
   { word: "Bipartisan", definition: "supported by two political parties" },
   { word: "Constituency", definition: "area served by an elected official" },
   { word: "Deferment", definition: "postponement" },
-  { word: "Diplomacy", definition: "managing international relations" },
+ 
   { word: "Filibuster", definition: "delaying tactic used in legislative debate" },
   { word: "Hierarchy", definition: "system ranking people or groups" },
-  { word: "Ideology", definition: "system of beliefs or ideas" },
+  
   { word: "Impeachment", definition: "process of charging public official" },
   { word: "Inaugurate", definition: "begin or introduce" },
-  { word: "Litigation", definition: "process of taking legal action" },
-  { word: "Mandate", definition: "official order or commission to act" },
-  { word: "Paradigm", definition: "a typical example or pattern" },
-  { word: "Precedent", definition: "earlier event considered as an example" },
-  { word: "Proliferation", definition: "rapid increase" },
-  { word: "Promulgate", definition: "officially announce or put into effect" },
-  { word: "Ratify", definition: "formally confirm or approve" },
-  { word: "Reiterate", definition: "say something again for emphasis" },
-  { word: "Repercussion", definition: "unintended consequence from an action" },
-  { word: "Sanction", definition: "penalty or approval" },
+ 
+  
   { word: "Sovereignty", definition: "supreme power or authority" },
   { word: "Subpoena", definition: "writ ordering someone to attend court" },
   { word: "Surveillance", definition: "close observation" },
-  { word: "Amendment", definition: "official change to a law" },
+  
   { word: "Corroborate", definition: "confirm or give support to a statement" },
   { word: "Disenfranchise", definition: "deprive someone of the right to vote" },
   { word: "Expedite", definition: "make something happen sooner" },
   { word: "Insurrection", definition: "violent uprising against authority" },
-  { word: "Jurisdiction", definition: "official power to make decisions" },
+ 
   { word: "Manifesto", definition: "public declaration of policy and aims" },
   { word: "Obfuscate", definition: "deliberately make something unclear" },
-  { word: "Parliamentary", definition: "related to a parliament" },
+
   { word: "Plagiarize", definition: "take someone else's work as one's own" },
-  { word: "Pragmatic", definition: "dealing with things practically" },
-  { word: "Reconciliation", definition: "restoration of friendly relations" },
-  { word: "Scrutiny", definition: "critical observation or examination" },
+ 
   { word: "Stalemate", definition: "situation with no possible progress" },
   { word: "Totalitarian", definition: "centralized and dictatorial government" },
-  { word: "Vindicate", definition: "clear from blame or suspicion" },
-  { word: "Abdicate", definition: "renounce a throne or responsibility" },
-  { word: "Aberration", definition: "departure from what's normal" },
-  { word: "Adjudicate", definition: "make a formal judgment" },
+ 
   { word: "Allegation", definition: "claim of wrongdoing" },
-  { word: "Ameliorate", definition: "make something better" },
+ 
   { word: "Animosity", definition: "strong hostility" },
   { word: "Anomaly", definition: "deviation from the norm" },
   { word: "Arbitrary", definition: "based on random choice" },
@@ -636,4 +619,5 @@ const allWords = [
   { word: "Tangible assets", definition: "physical assets like equipment or property" },
   { word: "Treasury bonds", definition: "government debt securities with long maturity" }
 ];
+
 
