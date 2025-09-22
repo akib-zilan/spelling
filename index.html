@@ -132,9 +132,14 @@
                             <div id="timer-bar" class="h-1 bg-rose-500 rounded-full"></div>
                         </div>
 
-                        <button id="add-to-slab-btn" class="mt-2 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg transition w-full hidden">
-                            <i class="fas fa-plus-circle mr-2"></i>Keep Practicing this Word
-                        </button>
+                        <div id="correct-answer-options" class="mt-2 flex space-x-2 hidden">
+                            <button id="add-to-slab-btn" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg transition w-full text-sm">
+                                <i class="fas fa-plus-circle mr-1"></i>Keep Practicing
+                            </button>
+                            <button id="delete-word-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition w-full text-sm">
+                                <i class="fas fa-trash-alt mr-1"></i>Delete Word
+                            </button>
+                        </div>
 
                         <div id="check-btn-container" class="mt-6">
                             <button id="check-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition w-full">Check Spelling</button>
@@ -213,6 +218,8 @@
             let barBlocks = [];
             let slabs = [];
             let bars = [];
+            let deletedWords = [];
+            let filteredWords = [];
             let blockCooldowns = {};
             let slabCooldowns = {};
             let barCooldowns = {};
@@ -258,7 +265,9 @@
             const addWordModal = document.getElementById('add-word-modal');
             const closeModalBtn = document.getElementById('close-modal-btn');
             const addWordForm = document.getElementById('add-word-form');
+            const correctOptionsContainer = document.getElementById('correct-answer-options');
             const addToSlabBtn = document.getElementById('add-to-slab-btn');
+            const deleteWordBtn = document.getElementById('delete-word-btn');
             const timerContainer = document.getElementById('timer-container');
             const timerBar = document.getElementById('timer-bar');
 
@@ -273,7 +282,6 @@
                     if (user) {
                         userId = user.uid;
                         await loadUserData();
-                        updateAndRenderBlocks();
                     } else {
                         await auth.signInAnonymously();
                     }
@@ -288,9 +296,9 @@
                         if (doc.exists) {
                             const data = doc.data();
                             totalPoints = data.totalPoints || 0;
-                            // Explicitly copy arrays to avoid mutation issues with Firestore data objects
                             slabs = [...(data.slabs || [])];
                             bars = [...(data.bars || [])];
+                            deletedWords = [...(data.deletedWords || [])];
                             blockCooldowns = data.blockCooldowns || {};
                             slabCooldowns = data.slabCooldowns || {};
                             barCooldowns = data.barCooldowns || {};
@@ -299,11 +307,13 @@
                             totalPoints = 0;
                             slabs = [];
                             bars = [];
+                            deletedWords = [];
                             blockCooldowns = {};
                             slabCooldowns = {};
                             barCooldowns = {};
                             blockProgress = {};
                         }
+                        filterMasterWordList();
                         updateScoreDisplay();
                         updateAndRenderBlocks();
                         resolve();
@@ -317,11 +327,15 @@
             async function saveUserData() {
                 if (!userId) return;
                 try {
-                    const userData = { totalPoints, slabs, bars, blockCooldowns, slabCooldowns, barCooldowns, blockProgress };
+                    const userData = { totalPoints, slabs, bars, deletedWords, blockCooldowns, slabCooldowns, barCooldowns, blockProgress };
                     await db.collection('userData').doc(userId).set(userData, { merge: true });
                 } catch (error) {
                     console.error("Error saving user data: ", error);
                 }
+            }
+
+            function filterMasterWordList() {
+                filteredWords = allWords.filter(wordObj => !deletedWords.includes(wordObj.word));
             }
             
             function clearTimeouts() {
@@ -349,8 +363,8 @@
 
             function updateAndRenderBlocks() {
                 wordBlocks = [];
-                for (let i = 0; i < allWords.length; i += BLOCK_SIZE) {
-                    wordBlocks.push(allWords.slice(i, i + BLOCK_SIZE));
+                for (let i = 0; i < filteredWords.length; i += BLOCK_SIZE) {
+                    wordBlocks.push(filteredWords.slice(i, i + BLOCK_SIZE));
                 }
                 
                 slabBlocks = [];
@@ -512,7 +526,7 @@
                     spellInput.classList.add('border-gray-600', 'focus:border-teal-500');
                     feedbackMessageEl.classList.add('hidden');
                     
-                    addToSlabBtn.classList.add('hidden');
+                    correctOptionsContainer.classList.add('hidden');
                     checkBtnContainer.classList.remove('hidden');
 
                     updateProgress();
@@ -575,10 +589,16 @@
 
                     const currentWordObj = wordsInCurrentBlock[currentWordIndex];
                     
-                    addToSlabBtn.classList.remove('hidden');
+                    correctOptionsContainer.classList.remove('hidden');
+                    
                     addToSlabBtn.disabled = false;
-                    addToSlabBtn.innerHTML = `<i class="fas fa-plus-circle mr-2"></i>Keep Practicing this Word`;
+                    addToSlabBtn.innerHTML = `<i class="fas fa-plus-circle mr-1"></i>Keep Practicing`;
                     addToSlabBtn.dataset.word = JSON.stringify(currentWordObj);
+
+                    deleteWordBtn.disabled = false;
+                    deleteWordBtn.innerHTML = `<i class="fas fa-trash-alt mr-1"></i>Delete Word`;
+                    deleteWordBtn.dataset.word = JSON.stringify(currentWordObj);
+
                     checkBtnContainer.classList.add('hidden');
 
                     nextWordTimeoutId = setTimeout(() => {
@@ -604,9 +624,8 @@
                     spellInput.disabled = true;
 
                     timerContainer.classList.remove('hidden');
-                    // We must remove and re-add the class to restart the animation
                     timerBar.classList.remove('shrinking-bar');
-                    void timerBar.offsetWidth; // Trigger a reflow
+                    void timerBar.offsetWidth; 
                     timerBar.classList.add('shrinking-bar');
 
                     incorrectFeedbackTimeoutId = setTimeout(() => {
@@ -700,10 +719,28 @@
                     if (wordData && !slabs.some(w => w.word === wordData.word)) {
                         slabs.push(wordData);
                         saveUserData();
-                        addToSlabBtn.innerHTML = `<i class="fas fa-check-circle mr-2"></i>Added to Slabs!`;
+                        addToSlabBtn.innerHTML = `<i class="fas fa-check-circle mr-2"></i>Added!`;
                         addToSlabBtn.disabled = true;
+                        deleteWordBtn.disabled = true;
                     }
                  });
+
+                 deleteWordBtn.addEventListener('click', () => {
+                    const wordData = JSON.parse(deleteWordBtn.dataset.word);
+                    if (wordData && !deletedWords.includes(wordData.word)) {
+                        deletedWords.push(wordData.word);
+                        
+                        let slabIndex = slabs.findIndex(w => w.word === wordData.word);
+                        if (slabIndex !== -1) slabs.splice(slabIndex, 1);
+                        let barIndex = bars.findIndex(w => w.word === wordData.word);
+                        if (barIndex !== -1) bars.splice(barIndex, 1);
+
+                        saveUserData();
+                        deleteWordBtn.innerHTML = `<i class="fas fa-check-circle mr-2"></i>Deleted!`;
+                        deleteWordBtn.disabled = true;
+                        addToSlabBtn.disabled = true;
+                    }
+                });
                 
                 addWordsBtn.addEventListener('click', () => addWordModal.classList.remove('hidden'));
                 resetScoreBtn.addEventListener('click', () => {
@@ -712,6 +749,7 @@
                         totalPoints = 0;
                         slabs = [];
                         bars = [];
+                        deletedWords = [];
                         blockCooldowns = {};
                         slabCooldowns = {};
                         barCooldowns = {};
@@ -733,6 +771,7 @@
                         const newWordObj = { word: newWord, definition: newDefinition };
                         
                         allWords.push(newWordObj);
+                        filterMasterWordList();
                         
                         updateAndRenderBlocks();
                         addWordModal.classList.add('hidden');
