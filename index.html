@@ -618,7 +618,6 @@
                 if (titleLower.includes('block')) {
                     blockCooldowns[title] = Date.now();
                 } 
-                // Cooldowns for slabs and bars are removed
                 
                 saveUserData();
 
@@ -630,6 +629,15 @@
 
             function goToMainMenu() {
                 clearTimeouts();
+                
+                const title = practiceTitle.textContent;
+                if (wordsInCurrentBlock.length > 0 && title.toLowerCase().includes('block')) {
+                    blockCooldowns[title] = Date.now();
+                    saveUserData();
+                }
+
+                wordsInCurrentBlock = [];
+
                 practiceInterface.classList.add('hidden');
                 completionScreen.classList.add('hidden');
                 mainMenu.classList.remove('hidden');
