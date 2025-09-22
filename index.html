@@ -210,8 +210,6 @@
 
             const BLOCK_SIZE = 20;
             const BLOCK_COOLDOWN = 20 * 60 * 1000; // 20 minutes
-            const SLAB_COOLDOWN = 7 * 60 * 1000; // 7 minutes
-            const BAR_COOLDOWN = 5 * 60 * 1000; // 5 minutes
 
             let wordBlocks = [];
             let slabBlocks = [];
@@ -221,8 +219,6 @@
             let deletedWords = [];
             let filteredWords = [];
             let blockCooldowns = {};
-            let slabCooldowns = {};
-            let barCooldowns = {};
             let blockProgress = {};
             let cooldownInterval = null;
 
@@ -300,8 +296,6 @@
                             bars = [...(data.bars || [])];
                             deletedWords = [...(data.deletedWords || [])];
                             blockCooldowns = data.blockCooldowns || {};
-                            slabCooldowns = data.slabCooldowns || {};
-                            barCooldowns = data.barCooldowns || {};
                             blockProgress = data.blockProgress || {};
                         } else {
                             totalPoints = 0;
@@ -309,8 +303,6 @@
                             bars = [];
                             deletedWords = [];
                             blockCooldowns = {};
-                            slabCooldowns = {};
-                            barCooldowns = {};
                             blockProgress = {};
                         }
                         filterMasterWordList();
@@ -327,7 +319,7 @@
             async function saveUserData() {
                 if (!userId) return;
                 try {
-                    const userData = { totalPoints, slabs, bars, deletedWords, blockCooldowns, slabCooldowns, barCooldowns, blockProgress };
+                    const userData = { totalPoints, slabs, bars, deletedWords, blockCooldowns, blockProgress };
                     await db.collection('userData').doc(userId).set(userData, { merge: true });
                 } catch (error) {
                     console.error("Error saving user data: ", error);
@@ -444,26 +436,10 @@
                                 }
                             }
                             
-                             // Cooldown logic
-                            let cooldowns, cooldownDuration;
-                            switch(group.type) {
-                                case 'block':
-                                    cooldowns = blockCooldowns;
-                                    cooldownDuration = BLOCK_COOLDOWN;
-                                    break;
-                                case 'slab':
-                                    cooldowns = slabCooldowns;
-                                    cooldownDuration = SLAB_COOLDOWN;
-                                    break;
-                                case 'bar':
-                                    cooldowns = barCooldowns;
-                                    cooldownDuration = BAR_COOLDOWN;
-                                    break;
-                            }
-                            
-                            if (cooldowns && cooldowns[blockTitle]) {
-                                const completionTime = cooldowns[blockTitle];
-                                const endTime = completionTime + cooldownDuration;
+                             // Cooldown logic for Word Blocks only
+                            if (group.type === 'block' && blockCooldowns[blockTitle]) {
+                                const completionTime = blockCooldowns[blockTitle];
+                                const endTime = completionTime + BLOCK_COOLDOWN;
                                 if (Date.now() < endTime) {
                                     button.disabled = true;
                                     button.classList.add('opacity-60', 'cursor-not-allowed', 'on-cooldown');
@@ -653,12 +629,9 @@
 
                 if (titleLower.includes('block')) {
                     blockCooldowns[title] = Date.now();
-                } else if (titleLower.includes('slab')) {
-                    slabCooldowns[title] = Date.now();
-                } else if (titleLower.includes('bar')) {
-                    barCooldowns[title] = Date.now();
-                }
-
+                } 
+                // Cooldowns for slabs and bars are removed
+                
                 saveUserData();
 
                 practiceInterface.classList.add('hidden');
@@ -751,8 +724,6 @@
                         bars = [];
                         deletedWords = [];
                         blockCooldowns = {};
-                        slabCooldowns = {};
-                        barCooldowns = {};
                         blockProgress = {};
                         saveUserData().then(() => {
                            alert("Your progress has been reset.");
