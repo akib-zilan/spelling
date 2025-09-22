@@ -219,7 +219,6 @@
             let deletedWords = [];
             let filteredWords = [];
             let blockCooldowns = {};
-            let blockProgress = {};
             let cooldownInterval = null;
 
 
@@ -296,14 +295,12 @@
                             bars = [...(data.bars || [])];
                             deletedWords = [...(data.deletedWords || [])];
                             blockCooldowns = data.blockCooldowns || {};
-                            blockProgress = data.blockProgress || {};
                         } else {
                             totalPoints = 0;
                             slabs = [];
                             bars = [];
                             deletedWords = [];
                             blockCooldowns = {};
-                            blockProgress = {};
                         }
                         filterMasterWordList();
                         updateScoreDisplay();
@@ -319,7 +316,7 @@
             async function saveUserData() {
                 if (!userId) return;
                 try {
-                    const userData = { totalPoints, slabs, bars, deletedWords, blockCooldowns, blockProgress };
+                    const userData = { totalPoints, slabs, bars, deletedWords, blockCooldowns };
                     await db.collection('userData').doc(userId).set(userData, { merge: true });
                 } catch (error) {
                     console.error("Error saving user data: ", error);
@@ -484,7 +481,7 @@
                 currentBlockData = block;
                 wordsInCurrentBlock = [...block];
                 practiceTitle.textContent = title;
-                currentWordIndex = blockProgress[title] || 0;
+                currentWordIndex = 0;
                 correctCount = 0;
                 mainMenu.classList.add('hidden');
                 practiceInterface.classList.remove('hidden');
@@ -534,15 +531,6 @@
                 const correctWord = wordsInCurrentBlock[currentWordIndex].word.toLowerCase();
                 const isCorrect = typedWord === correctWord;
                 const practiceTitleText = practiceTitle.textContent.toLowerCase();
-
-
-                // Save progress for the next word
-                if (currentWordIndex + 1 < wordsInCurrentBlock.length) {
-                    blockProgress[practiceTitle.textContent] = currentWordIndex + 1;
-                } else {
-                    // This was the last word, so clear the progress for this block
-                    delete blockProgress[practiceTitle.textContent];
-                }
 
                 feedbackMessageEl.classList.remove('hidden');
                 
@@ -724,7 +712,6 @@
                         bars = [];
                         deletedWords = [];
                         blockCooldowns = {};
-                        blockProgress = {};
                         saveUserData().then(() => {
                            alert("Your progress has been reset.");
                            updateAndRenderBlocks();
