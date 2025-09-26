@@ -340,6 +340,13 @@
                 timerBar.classList.remove('shrinking-bar');
             }
 
+            function shuffleArray(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+            }
+
             function loadVoices() {
                 const voices = speechSynthesis.getVoices();
                 if (voices.length === 0) return;
@@ -416,11 +423,17 @@
 
                             button.addEventListener('click', () => startPractice(block, blockTitle));
                             
-                            // Score lock logic
+                            // Score lock & Studied logic
                             const isStandardBlock = group.type === 'block';
-                            if (isStandardBlock && blockNum > 1) {
+                            if (isStandardBlock) {
+                                const nextBlockRequiredScore = blockNum * 2000;
                                 const requiredScore = (blockNum - 1) * 2000;
-                                if (totalPoints < requiredScore) {
+                                
+                                if (blockNum < group.blocks.length && totalPoints >= nextBlockRequiredScore) {
+                                    button.disabled = true;
+                                    button.className = `bg-gray-700 text-white font-bold py-6 rounded-lg shadow-lg flex flex-col items-center justify-center opacity-60 cursor-not-allowed`;
+                                    button.innerHTML = `<span class="text-lg font-semibold">Studied</span>`;
+                                } else if (blockNum > 1 && totalPoints < requiredScore) {
                                     button.disabled = true;
                                     button.classList.add('opacity-60', 'cursor-not-allowed', 'relative');
                                     button.innerHTML += `
@@ -433,7 +446,6 @@
                                 }
                             }
                             
-                             // Cooldown logic for Word Blocks only
                             if (group.type === 'block' && blockCooldowns[blockTitle]) {
                                 const completionTime = blockCooldowns[blockTitle];
                                 const endTime = completionTime + BLOCK_COOLDOWN;
@@ -480,6 +492,7 @@
                 clearTimeouts();
                 currentBlockData = block;
                 wordsInCurrentBlock = [...block];
+                shuffleArray(wordsInCurrentBlock);
                 practiceTitle.textContent = title;
                 currentWordIndex = 0;
                 correctCount = 0;
@@ -537,7 +550,9 @@
                 if (isCorrect) {
                     correctCount++;
                     
-                    if (practiceTitleText.includes('slab') || practiceTitleText.includes('bar')) {
+                    if (practiceTitleText.includes('bar')) {
+                        totalPoints += 4;
+                    } else if (practiceTitleText.includes('slab')) {
                         totalPoints += 2;
                     } else {
                         totalPoints += 10;
@@ -586,16 +601,13 @@
                     feedbackMessageEl.classList.add('incorrect');
                     feedbackMessageEl.classList.remove('correct');
                     spellInput.disabled = true;
-
-                    timerContainer.classList.remove('hidden');
-                    timerBar.classList.remove('shrinking-bar');
-                    void timerBar.offsetWidth; 
-                    timerBar.classList.add('shrinking-bar');
-
+                    
+                    const incorrectDelay = (practiceTitleText.includes('slab') || practiceTitleText.includes('bar')) ? 1000 : 3000;
+                    
                     incorrectFeedbackTimeoutId = setTimeout(() => {
                         currentWordIndex++;
                         loadWord();
-                    }, 10000);
+                    }, incorrectDelay);
 
                     spellInput.classList.add('border-red-500');
                     spellInput.classList.remove('border-green-500', 'border-gray-600', 'focus:border-teal-500');
