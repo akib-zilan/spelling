@@ -209,7 +209,7 @@
             let userDataUnsubscribe = null;
 
             const BLOCK_SIZE = 20;
-            const BLOCK_COOLDOWN = 20 * 60 * 1000; // 20 minutes
+            const COOLDOWN_TIME = 20 * 60 * 1000; // 20 minutes
 
             let wordBlocks = [];
             let slabBlocks = [];
@@ -219,6 +219,7 @@
             let deletedWords = [];
             let filteredWords = [];
             let blockCooldowns = {};
+            let practiceCounts = {};
             let cooldownInterval = null;
 
 
@@ -295,12 +296,14 @@
                             bars = [...(data.bars || [])];
                             deletedWords = [...(data.deletedWords || [])];
                             blockCooldowns = data.blockCooldowns || {};
+                            practiceCounts = data.practiceCounts || {};
                         } else {
                             totalPoints = 0;
                             slabs = [];
                             bars = [];
                             deletedWords = [];
                             blockCooldowns = {};
+                            practiceCounts = {};
                         }
                         filterMasterWordList();
                         updateScoreDisplay();
@@ -316,7 +319,7 @@
             async function saveUserData() {
                 if (!userId) return;
                 try {
-                    const userData = { totalPoints, slabs, bars, deletedWords, blockCooldowns };
+                    const userData = { totalPoints, slabs, bars, deletedWords, blockCooldowns, practiceCounts };
                     await db.collection('userData').doc(userId).set(userData, { merge: true });
                 } catch (error) {
                     console.error("Error saving user data: ", error);
@@ -420,14 +423,15 @@
                             if(group.type === 'block') blockTitle = `Block ${blockNum}`;
                             if(group.type === 'slab') blockTitle = `Slab ${blockNum}`;
                             if(group.type === 'bar') blockTitle = `Bar ${blockNum}`;
+                            button.dataset.blockTitle = blockTitle;
 
                             button.addEventListener('click', () => startPractice(block, blockTitle));
                             
                             // Score lock & Studied logic
                             const isStandardBlock = group.type === 'block';
                             if (isStandardBlock) {
-                                const nextBlockRequiredScore = blockNum * 2000;
-                                const requiredScore = (blockNum - 1) * 2000;
+                                const nextBlockRequiredScore = blockNum * 3500;
+                                const requiredScore = (blockNum - 1) * 3500;
                                 
                                 if (blockNum < group.blocks.length && totalPoints >= nextBlockRequiredScore) {
                                     button.disabled = true;
@@ -446,9 +450,10 @@
                                 }
                             }
                             
-                            if (group.type === 'block' && blockCooldowns[blockTitle]) {
+                            // Universal Cooldown Logic
+                            if (blockCooldowns[blockTitle]) {
                                 const completionTime = blockCooldowns[blockTitle];
-                                const endTime = completionTime + BLOCK_COOLDOWN;
+                                const endTime = completionTime + COOLDOWN_TIME;
                                 if (Date.now() < endTime) {
                                     button.disabled = true;
                                     button.classList.add('opacity-60', 'cursor-not-allowed', 'on-cooldown');
@@ -476,6 +481,11 @@
                     if (remaining > 0) {
                         button.innerHTML = formatRemainingTime(remaining);
                     } else {
+                        const title = button.dataset.blockTitle;
+                        if (title) {
+                            delete blockCooldowns[title];
+                            saveUserData();
+                        }
                         button.disabled = false;
                         button.classList.remove('opacity-60', 'cursor-not-allowed', 'on-cooldown');
                         button.removeAttribute('data-cooldown-end');
@@ -490,6 +500,12 @@
 
             function startPractice(block, title) {
                 clearTimeouts();
+
+                const titleLower = title.toLowerCase();
+                if (titleLower.includes('slab') || titleLower.includes('bar')) {
+                    practiceCounts[title] = (practiceCounts[title] || 0) + 1;
+                }
+
                 currentBlockData = block;
                 wordsInCurrentBlock = [...block];
                 shuffleArray(wordsInCurrentBlock);
@@ -629,7 +645,10 @@
 
                 if (titleLower.includes('block')) {
                     blockCooldowns[title] = Date.now();
-                } 
+                } else if ((titleLower.includes('slab') || titleLower.includes('bar')) && practiceCounts[title] >= 3) {
+                    blockCooldowns[title] = Date.now();
+                    delete practiceCounts[title]; 
+                }
                 
                 saveUserData();
 
@@ -643,8 +662,15 @@
                 clearTimeouts();
                 
                 const title = practiceTitle.textContent;
-                if (wordsInCurrentBlock.length > 0 && title.toLowerCase().includes('block')) {
-                    blockCooldowns[title] = Date.now();
+                const titleLower = title.toLowerCase();
+
+                if (wordsInCurrentBlock.length > 0) {
+                     if (titleLower.includes('block')) {
+                        blockCooldowns[title] = Date.now();
+                    } else if ((titleLower.includes('slab') || titleLower.includes('bar')) && practiceCounts[title] >= 3) {
+                        blockCooldowns[title] = Date.now();
+                        delete practiceCounts[title];
+                    }
                     saveUserData();
                 }
 
@@ -732,6 +758,7 @@
                         bars = [];
                         deletedWords = [];
                         blockCooldowns = {};
+                        practiceCounts = {};
                         saveUserData().then(() => {
                            alert("Your progress has been reset.");
                            updateAndRenderBlocks();
